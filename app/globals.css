@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #f4f6fa;
+  color: #1f2937;
+}
+
+/* Print only the production sheet — hide the form, header, and buttons. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff;
+  }
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .sheet-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}
