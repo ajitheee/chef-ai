@@ -9,6 +9,7 @@ import {
   deleteRecipe,
   type SavedRecipe,
 } from "@/lib/storage";
+import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -136,11 +137,14 @@ export default function Home() {
   }
 
   const label = "block text-sm font-medium text-slate-600 mb-1";
+  // text-base (16px) prevents the zoom-on-focus jump on iOS; py-2.5 = bigger tap target.
   const inputCls =
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+    "w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500";
+  const chipBtn =
+    "rounded-md border px-3 py-1.5 text-xs font-medium";
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
+    <main className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
       <header className="mb-6 no-print">
         <h1 className="text-2xl font-bold text-slate-900">
           Digital Chef AI <span className="text-blue-600">· Production Scaler</span>
@@ -157,13 +161,13 @@ export default function Home() {
           <div className="flex gap-2">
             <button
               onClick={onSave}
-              className="rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+              className={`${chipBtn} border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100`}
             >
               Save recipe
             </button>
             <button
               onClick={loadSample}
-              className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              className={`${chipBtn} border-slate-300 text-slate-600 hover:bg-slate-50`}
             >
               Load sample
             </button>
@@ -207,7 +211,7 @@ export default function Home() {
         />
 
         <div className="mt-2 flex items-center gap-3">
-          <label className="cursor-pointer rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">
+          <label className="cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
             📷 Add photo of a recipe
             <input
               type="file"
@@ -272,9 +276,24 @@ export default function Home() {
 }
 
 function Sheet({ sheet }: { sheet: ProductionSheet }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyAll() {
+    try {
+      await navigator.clipboard.writeText(sheetText(sheet));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  const sheetBtn =
+    "rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50";
+
   return (
     <section className="sheet-card mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-bold text-slate-900">{sheet.dish}</h2>
           <p className="text-sm text-slate-500">
@@ -283,16 +302,34 @@ function Sheet({ sheet }: { sheet: ProductionSheet }) {
             <span className="font-medium text-slate-700">{sheet.targetYield.finishedYield}</span>
           </p>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="no-print rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-        >
-          🖨 Print / Save PDF
-        </button>
+        <div className="no-print flex flex-wrap justify-end gap-2">
+          <button onClick={copyAll} className={sheetBtn}>
+            {copied ? "✓ Copied" : "📋 Copy"}
+          </button>
+          {sheet.pullList.length > 0 && (
+            <button
+              onClick={() =>
+                downloadText(
+                  `${safeFileName(sheet.dish)}-pull-list.csv`,
+                  pullListCsv(sheet),
+                  "text/csv;charset=utf-8"
+                )
+              }
+              className={sheetBtn}
+            >
+              ⬇ Pull list (CSV)
+            </button>
+          )}
+          <button onClick={() => window.print()} className={sheetBtn}>
+            🖨 Print / PDF
+          </button>
+        </div>
       </div>
 
       <h3 className="mt-4 mb-2 text-sm font-semibold text-slate-700">Scaled recipe</h3>
-      <div className="overflow-x-auto">
+
+      {/* Table — tablet & desktop */}
+      <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">
@@ -314,6 +351,24 @@ function Sheet({ sheet }: { sheet: ProductionSheet }) {
           </tbody>
         </table>
       </div>
+
+      {/* Stacked cards — phone */}
+      <ul className="space-y-2 sm:hidden">
+        {sheet.ingredients.map((ing, i) => (
+          <li key={i} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-medium text-slate-800">{ing.item}</span>
+              <span className="whitespace-nowrap font-semibold text-slate-700">{ing.scaledQty}</span>
+            </div>
+            {(ing.multiplier || ing.note) && (
+              <p className="mt-1 text-xs text-slate-500">
+                {ing.multiplier ? <span className="mr-2 font-medium">{ing.multiplier}</span> : null}
+                {ing.note}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
 
       <Block title="⚠ Batching" items={sheet.batching} />
       <Block title="🔥 Holding on the line" items={sheet.holding} />
