@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SYSTEM_PROMPT, buildUserContent } from "./prompt";
+import { SYSTEM_PROMPT, buildUserContent, buildRefineMessage } from "./prompt";
 import {
   PRODUCTION_SHEET_JSON_SCHEMA,
   ProductionSheetSchema,
@@ -47,6 +47,52 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
   const block = response.content.find((b) => b.type === "tool_use");
   if (!block || block.type !== "tool_use") {
     throw new Error("The engine did not return a production sheet. Try again.");
+  }
+
+  const parsed = ProductionSheetSchema.safeParse(block.input);
+  if (!parsed.success) {
+    throw new Error("Engine output failed validation: " + parsed.error.message);
+  }
+  return parsed.data;
+}
+
+/**
+ * Multi-turn refinement: transforms the active production sheet per the
+ * chef's instruction. The sheet object is the single source of truth.
+ */
+export async function refineSheet(
+  sheet: ProductionSheet,
+  instruction: string
+): Promise<ProductionSheet> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing ANTHROPIC_API_KEY. Copy .env.local.example to .env.local and add your key to run the engine."
+    );
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
+    tools: [
+      {
+        name: "emit_production_sheet",
+        description: "Return the updated dining-hall production sheet as structured data.",
+        input_schema: PRODUCTION_SHEET_JSON_SCHEMA as unknown as Anthropic.Tool.InputSchema,
+      },
+    ],
+    tool_choice: { type: "tool", name: "emit_production_sheet" },
+    messages: [
+      { role: "user", content: buildRefineMessage(JSON.stringify(sheet), instruction) },
+    ],
+  });
+
+  const block = response.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") {
+    throw new Error("The engine did not return an updated sheet. Try again.");
   }
 
   const parsed = ProductionSheetSchema.safeParse(block.input);

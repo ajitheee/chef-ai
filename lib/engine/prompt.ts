@@ -81,3 +81,29 @@ export function buildUserContent(
   }
   return text;
 }
+
+/**
+ * Multi-turn refinement: apply an instruction ("make it vegan", "drop to 400
+ * covers", "less spicy") to the CURRENT production sheet. The sheet is the
+ * single source of truth — the engine transforms it rather than re-deriving
+ * from scratch, so edits build on each other cleanly.
+ */
+export function buildRefineMessage(sheetJson: string, instruction: string): string {
+  return [
+    `Here is the CURRENT production sheet (structured JSON). Apply the chef's change to it.`,
+    ``,
+    `CURRENT SHEET:`,
+    sheetJson,
+    ``,
+    `CHEF'S CHANGE: ${instruction.trim()}`,
+    ``,
+    `Rules:`,
+    `- Transform the existing sheet; keep everything that the change does not affect.`,
+    `- Re-run scaling logic only where the change requires it (covers, substitutions, dietary swaps, seasoning level).`,
+    `- For dietary/allergen swaps: re-balance the recipe (binders, liquid, yield) and add any cross-contact note to safetyFlags.`,
+    `- Keep batching, holding, and pull list consistent with the updated recipe.`,
+    `- State any new assumptions.`,
+    ``,
+    `Return the FULL updated production sheet via the emit_production_sheet tool.`,
+  ].join("\n");
+}

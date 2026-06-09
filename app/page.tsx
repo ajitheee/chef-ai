@@ -7,7 +7,11 @@ import {
   getRecipes,
   saveRecipe,
   deleteRecipe,
+  getHistory,
+  addToHistory,
+  deleteFromHistory,
   type SavedRecipe,
+  type SheetHistoryEntry,
 } from "@/lib/storage";
 import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
 
@@ -25,12 +29,19 @@ export default function Home() {
   const [imageName, setImageName] = useState("");
 
   const [saved, setSaved] = useState<SavedRecipe[]>([]);
+  const [history, setHistory] = useState<SheetHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sheet, setSheet] = useState<ProductionSheet | null>(null);
+  const [demo, setDemo] = useState(false);
+
+  const [refineText, setRefineText] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [refineNote, setRefineNote] = useState("");
 
   useEffect(() => {
     setSaved(getRecipes());
+    setHistory(getHistory());
   }, []);
 
   function loadSample() {
@@ -128,12 +139,50 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to scale.");
-      setSheet(data.sheet as ProductionSheet);
+      const s = data.sheet as ProductionSheet;
+      setSheet(s);
+      setDemo(!!data.demo);
+      setRefineNote("");
+      setHistory(addToHistory(s.dish, s.targetYield.covers, s));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onRefine() {
+    if (!sheet || !refineText.trim()) return;
+    setRefining(true);
+    setRefineNote("");
+    setError("");
+    try {
+      const res = await fetch("/api/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sheet, instruction: refineText }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to refine.");
+      if (data.note) {
+        setRefineNote(data.note);
+      } else {
+        const s = data.sheet as ProductionSheet;
+        setSheet(s);
+        setRefineText("");
+        setHistory(addToHistory(s.dish, s.targetYield.covers, s));
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setRefining(false);
+    }
+  }
+
+  function loadHistoryEntry(e: SheetHistoryEntry) {
+    setSheet(e.sheet as ProductionSheet);
+    setRefineNote("");
+    setError("");
   }
 
   const label = "block text-sm font-medium text-slate-600 mb-1";
@@ -270,9 +319,76 @@ export default function Home() {
         )}
       </section>
 
+      {history.length > 0 && !loading && (
+        <section className="no-print mt-4">
+          <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Recent sheets
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {history.map((h) => (
+              <span
+                key={h.id}
+                className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white py-1 pl-3 pr-1 text-xs text-slate-600"
+              >
+                <button onClick={() => loadHistoryEntry(h)} className="hover:text-blue-700">
+                  <span className="font-medium">{h.dish}</span> · {h.covers} covers ·{" "}
+                  <span className="text-slate-400">{h.savedAt}</span>
+                </button>
+                <button
+                  onClick={() => setHistory(deleteFromHistory(h.id))}
+                  className="flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                  aria-label={`Delete ${h.dish}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
       {loading && <LoadingSkeleton />}
       {!loading && !sheet && !recipeText.trim() && !imageData && <FirstRunHint />}
+
+      {sheet && demo && (
+        <p className="no-print mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          🧪 <span className="font-semibold">Demo mode</span> — this is a pre-computed sample
+          sheet so you can try the full flow. Add the API key to scale any recipe live.
+        </p>
+      )}
+
       {sheet && <Sheet sheet={sheet} />}
+
+      {sheet && (
+        <section className="no-print mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <label className="mb-1 block text-sm font-semibold text-slate-700">
+            Refine this sheet
+          </label>
+          <div className="flex gap-2">
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder='e.g. "drop to 400 covers" · "make it vegetarian" · "less spicy"'
+              value={refineText}
+              onChange={(e) => setRefineText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onRefine();
+              }}
+            />
+            <button
+              onClick={onRefine}
+              disabled={refining || !refineText.trim()}
+              className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {refining ? "Updating…" : "Update"}
+            </button>
+          </div>
+          {refineNote && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {refineNote}
+            </p>
+          )}
+        </section>
+      )}
     </main>
   );
 }
