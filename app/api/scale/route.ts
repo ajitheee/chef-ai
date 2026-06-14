@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scaleRecipe } from "@/lib/engine/claude";
 import { ScaleInputSchema } from "@/lib/engine/schema";
-import { isDemoMode, DEMO_SHEET } from "@/lib/engine/demo";
+import { isDemoMode, demoScale } from "@/lib/engine/demo";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -11,10 +11,15 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const input = ScaleInputSchema.parse(body);
 
-    // No API key yet -> serve the pre-authored sample sheet so the full app
-    // flow works end-to-end. Clearly flagged so the UI labels it as demo.
+    // No API key yet -> deterministically scale the sample recipe to the
+    // requested cover count (responds to the target; shows dampening). Flagged
+    // so the UI labels it as a demo preview.
     if (isDemoMode()) {
-      return NextResponse.json({ ok: true, sheet: DEMO_SHEET, demo: true });
+      return NextResponse.json({
+        ok: true,
+        sheet: demoScale(input.targetCovers, input.portionSize),
+        demo: true,
+      });
     }
 
     const sheet = await scaleRecipe(input);

@@ -352,8 +352,9 @@ export default function Home() {
 
       {sheet && demo && (
         <p className="no-print mt-6 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          🧪 <span className="font-semibold">Demo mode</span> — this is a pre-computed sample
-          sheet so you can try the full flow. Add the API key to scale any recipe live.
+          🧪 <span className="font-semibold">Demo preview</span> — scaling the sample recipe
+          (Mexican Rice) to your cover count, with dampening. Add the API key to scale{" "}
+          <span className="font-semibold">any</span> recipe with the live engine.
         </p>
       )}
 
