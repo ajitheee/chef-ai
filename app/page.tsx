@@ -45,7 +45,7 @@ export default function Home() {
   }, []);
 
   function loadSample() {
-    setRecipeName("Chicken & Andouille Jambalaya");
+    setRecipeName("Mexican Rice");
     setRecipeText(SAMPLE.recipeText);
     setBasePortions(String(SAMPLE.basePortions));
     setTargetCovers(String(SAMPLE.targetCovers));
