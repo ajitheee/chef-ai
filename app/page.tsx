@@ -522,7 +522,8 @@ function Sheet({ sheet }: { sheet: ProductionSheet }) {
       <Block title="🔥 Holding on the line" items={sheet.holding} />
       <PullList items={sheet.pullList} />
       <Block title="Assumptions" items={sheet.assumptions} muted />
-      {sheet.safetyFlags.length > 0 && <Block title="🛡 Safety" items={sheet.safetyFlags} />}
+      {sheet.allergenFlags.length > 0 && <Block title="⚠ Allergen flags" items={sheet.allergenFlags} />}
+      {sheet.safetyFlags.length > 0 && <Block title="🛡 Safety & cooling" items={sheet.safetyFlags} />}
     </section>
   );
 }

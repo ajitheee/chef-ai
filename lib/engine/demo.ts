@@ -140,7 +140,10 @@ export function demoScale(covers: number, portionSize = "3 oz cooked"): Producti
       .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" })),
     safetyFlags: [
       "Hold hot at 135F (57C) or above — check each pan with a calibrated probe.",
-      "Cool leftovers 135->70F within 2 h, 70->41F within 4 more h (2-stage cooling).",
+      "Cool leftovers in shallow pans (reduce depth) — 135->70F within 2 h, 70->41F within 4 more h.",
+    ],
+    allergenFlags: [
+      "No Big-9 allergens in the base recipe — verify the vegetable stock base and seasoning supplier labels before claiming allergen-free.",
     ],
   };
 }

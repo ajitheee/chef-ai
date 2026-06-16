@@ -41,8 +41,12 @@ export function sheetText(sheet: ProductionSheet): string {
     L.push("", "ASSUMPTIONS");
     sheet.assumptions.forEach((a) => L.push(`- ${a}`));
   }
+  if (sheet.allergenFlags.length) {
+    L.push("", "ALLERGEN FLAGS");
+    sheet.allergenFlags.forEach((s) => L.push(`- ${s}`));
+  }
   if (sheet.safetyFlags.length) {
-    L.push("", "SAFETY");
+    L.push("", "SAFETY & COOLING");
     sheet.safetyFlags.forEach((s) => L.push(`- ${s}`));
   }
   return L.join("\n");

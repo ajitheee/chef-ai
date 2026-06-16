@@ -61,6 +61,7 @@ export const ProductionSheetSchema = z.object({
   holding: z.array(z.string()).optional().default([]),
   pullList: z.array(PullItemSchema).optional().default([]),
   safetyFlags: z.array(z.string()).optional().default([]),
+  allergenFlags: z.array(z.string()).optional().default([]),
 });
 export type ProductionSheet = z.infer<typeof ProductionSheetSchema>;
 
@@ -140,7 +141,12 @@ export const PRODUCTION_SHEET_JSON_SCHEMA = {
     safetyFlags: {
       type: "array",
       items: { type: "string" },
-      description: "Food-safety notes; never improvise safety-critical numbers.",
+      description: "Food-safety + cooling notes; never improvise safety-critical numbers.",
+    },
+    allergenFlags: {
+      type: "array",
+      items: { type: "string" },
+      description: "Major allergens present (milk, egg, fish, shellfish, tree nut, peanut, wheat/gluten, soy, sesame). Never claim allergen-free without known controls.",
     },
   },
   required: ["dish", "baseYield", "targetYield", "ingredients"],
