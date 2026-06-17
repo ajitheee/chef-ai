@@ -1,8 +1,44 @@
-import type { ProductionSheet } from "./schema";
+import type { ProductionSheet, VariationsResult } from "./schema";
 
 /** True when no API key is configured — the app runs in demo mode. */
 export function isDemoMode(): boolean {
   return !process.env.ANTHROPIC_API_KEY;
+}
+
+/** Pre-authored variations of the Mexican Rice sample (demo, no key). */
+export function demoVariations(): VariationsResult {
+  return {
+    dish: "Mexican Rice",
+    variations: [
+      {
+        name: "Cilantro-Lime Rice",
+        summary: "Bright, tomato-free version — jasmine finished with lime and extra cilantro. Lighter, crowd favorite.",
+        recipeText:
+          "Cilantro-Lime Rice\n- 12.5 cups jasmine rice (dry)\n- vegetable stock (2:1 to rice)\n- 1.5 cups yellow onion, diced\n- 1 oz garlic, minced\n- 6 oz lime juice (finish)\n- 3 bunches cilantro, chopped (finish)\n- olive/canola oil, as needed\n- kosher salt, to taste\nMethod: Toast rice in oil, sweat onion + garlic, add stock 2:1, combi-steam 212F 25-30 min. Fluff, fold in lime juice and cilantro at service. Hold 135F+.",
+        basePortions: 50,
+        portionSize: "3 oz cooked",
+        tags: ["base swap", "brighter", "tomato-free"],
+      },
+      {
+        name: "Brown Mexican Rice (higher fiber)",
+        summary: "Whole-grain swap for the wellness line — brown jasmine, longer steam, a touch more stock.",
+        recipeText:
+          "Brown Mexican Rice\n- 12.5 cups brown jasmine rice (dry)\n- vegetable stock (2.25:1 to rice)\n- 1.5 cups onion, 1 oz garlic, 2 oz jalapeno\n- 24 oz tomato puree, 1 #10 fire-roasted diced tomato\n- 1 Tbsp cumin, 1 tsp coriander, 1 Tbsp oregano, salt to taste\n- cilantro to finish\nMethod: As classic, but steam 40-45 min for brown rice and add ~12% more stock. Hold 135F+.",
+        basePortions: 50,
+        portionSize: "3 oz cooked",
+        tags: ["whole grain", "higher fiber", "wellness"],
+      },
+      {
+        name: "Lower-Sodium Mexican Rice",
+        summary: "For the healthcare/wellness line — salt cut sharply, brightness and spice raised to compensate.",
+        recipeText:
+          "Lower-Sodium Mexican Rice\n- 12.5 cups jasmine rice (dry)\n- low-sodium vegetable stock (2:1)\n- 1.5 cups onion, 1.5 oz garlic, 2 oz jalapeno\n- 24 oz no-salt-added tomato puree, 1 #10 no-salt diced tomato\n- 1.25 Tbsp cumin, 1.5 tsp coriander, 1.25 Tbsp oregano\n- 3 oz lime juice + 2 bunches cilantro (finish)\n- salt: minimal, to taste\nMethod: As classic; lean on lime, cumin, oregano, and aromatics for flavor instead of salt. Hold 135F+.",
+        basePortions: 50,
+        portionSize: "3 oz cooked",
+        tags: ["lower sodium", "healthcare line"],
+      },
+    ],
+  };
 }
 
 /**

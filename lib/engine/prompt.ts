@@ -115,3 +115,30 @@ export function buildRefineMessage(sheetJson: string, instruction: string): stri
     `Return the FULL updated production sheet via the emit_production_sheet tool.`,
   ].join("\n");
 }
+
+/**
+ * Variations / options (the creative lens): given a dish or base recipe, propose
+ * 2-3 distinct, practical variations for high-volume dining-hall service.
+ */
+export function buildVariationsMessage(input: {
+  dish: string;
+  recipeText: string;
+  portionSize: string;
+  equipment: string;
+}): string {
+  const lines: string[] = [
+    `Propose 2-3 distinct, practical VARIATIONS for high-volume dining-hall service.`,
+    ``,
+  ];
+  if (input.recipeText && input.recipeText.trim()) {
+    lines.push(`BASE RECIPE (riff on this, keep its identity):`, input.recipeText.trim(), ``);
+  }
+  if (input.dish && input.dish.trim()) lines.push(`DISH: ${input.dish.trim()}`);
+  if (input.portionSize && input.portionSize.trim()) lines.push(`Portion size: ${input.portionSize.trim()}`);
+  if (input.equipment && input.equipment.trim()) lines.push(`Equipment: ${input.equipment.trim()}`);
+  lines.push(
+    ``,
+    `Make the variations meaningfully different — e.g. a base-ingredient swap, a lower-sodium or dietary version, or a version that holds better for a long line. Preserve cultural integrity: keep culturally specific dishes authentic unless a modern/fusion take IS the variation (label it honestly). For each variation give: a clear name, a one-line summary of what changes and why, a complete ingredient list + brief method, base portions, and portion size. Return via the emit_variations tool.`
+  );
+  return lines.join("\n");
+}

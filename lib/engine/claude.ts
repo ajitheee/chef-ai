@@ -1,10 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SYSTEM_PROMPT, buildUserContent, buildRefineMessage } from "./prompt";
+import {
+  SYSTEM_PROMPT,
+  buildUserContent,
+  buildRefineMessage,
+  buildVariationsMessage,
+} from "./prompt";
 import {
   PRODUCTION_SHEET_JSON_SCHEMA,
   ProductionSheetSchema,
+  VARIATIONS_JSON_SCHEMA,
+  VariationsResultSchema,
   type ScaleInput,
   type ProductionSheet,
+  type VariationsInput,
+  type VariationsResult,
 } from "./schema";
 
 // Default model — override with ANTHROPIC_MODEL in .env.local if your key
@@ -52,6 +61,45 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
   const parsed = ProductionSheetSchema.safeParse(block.input);
   if (!parsed.success) {
     throw new Error("Engine output failed validation: " + parsed.error.message);
+  }
+  return parsed.data;
+}
+
+/**
+ * Variations / options: propose 2-3 distinct versions of a dish or recipe.
+ */
+export async function suggestVariations(input: VariationsInput): Promise<VariationsResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing ANTHROPIC_API_KEY. Copy .env.local.example to .env.local and add your key to run the engine."
+    );
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 4096,
+    system: SYSTEM_PROMPT,
+    tools: [
+      {
+        name: "emit_variations",
+        description: "Return 2-3 practical recipe variations as structured data.",
+        input_schema: VARIATIONS_JSON_SCHEMA as unknown as Anthropic.Tool.InputSchema,
+      },
+    ],
+    tool_choice: { type: "tool", name: "emit_variations" },
+    messages: [{ role: "user", content: buildVariationsMessage(input) }],
+  });
+
+  const block = response.content.find((b) => b.type === "tool_use");
+  if (!block || block.type !== "tool_use") {
+    throw new Error("The engine did not return variations. Try again.");
+  }
+  const parsed = VariationsResultSchema.safeParse(block.input);
+  if (!parsed.success) {
+    throw new Error("Variations failed validation: " + parsed.error.message);
   }
   return parsed.data;
 }

@@ -11,6 +11,8 @@ switch to the live engine automatically.
 
 ## Features
 - One-screen scaling: recipe + tonight's covers → full production sheet
+- Variations / options: from a dish or his recipe, propose 2-3 distinct versions
+  (base swap, lower-sodium, holds-better) — pick one, then scale it
 - Multi-turn refinement: "drop to 400 covers", "make it vegetarian", "less spicy"
   — edits transform the active sheet (one object, one brain)
 - Save & reuse recipes (no re-typing) + recent-sheet history

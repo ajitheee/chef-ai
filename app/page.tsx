@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SAMPLE } from "@/lib/engine/sample";
-import type { ProductionSheet } from "@/lib/engine/schema";
+import type { ProductionSheet, Variation } from "@/lib/engine/schema";
 import {
   getRecipes,
   saveRecipe,
@@ -38,6 +38,9 @@ export default function Home() {
   const [refineText, setRefineText] = useState("");
   const [refining, setRefining] = useState(false);
   const [refineNote, setRefineNote] = useState("");
+
+  const [variations, setVariations] = useState<Variation[]>([]);
+  const [varLoading, setVarLoading] = useState(false);
 
   useEffect(() => {
     setSaved(getRecipes());
@@ -185,6 +188,41 @@ export default function Home() {
     setError("");
   }
 
+  async function onVariations() {
+    if (!recipeName.trim() && !recipeText.trim()) {
+      setError("Add a recipe name or recipe first (or Load sample), then get variations.");
+      return;
+    }
+    setVarLoading(true);
+    setError("");
+    setVariations([]);
+    try {
+      const res = await fetch("/api/variations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dish: recipeName, recipeText, portionSize, equipment }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Failed to get variations.");
+      setVariations((data.result?.variations || []) as Variation[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setVarLoading(false);
+    }
+  }
+
+  function useVariation(v: Variation) {
+    setRecipeName(v.name);
+    setRecipeText(v.recipeText);
+    setBasePortions(String(v.basePortions));
+    setPortionSize(v.portionSize);
+    clearImage();
+    setVariations([]);
+    setSheet(null);
+    setError("");
+  }
+
   const label = "block text-sm font-medium text-slate-600 mb-1";
   // text-base (16px) prevents the zoom-on-focus jump on iOS; py-2.5 = bigger tap target.
   const inputCls =
@@ -207,7 +245,14 @@ export default function Home() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm no-print">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-700">Recipe</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onVariations}
+              disabled={varLoading}
+              className={`${chipBtn} border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100 disabled:opacity-50`}
+            >
+              {varLoading ? "Thinking…" : "💡 Variations"}
+            </button>
             <button
               onClick={onSave}
               className={`${chipBtn} border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100`}
@@ -318,6 +363,35 @@ export default function Home() {
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
       </section>
+
+      {variations.length > 0 && (
+        <section className="no-print mt-4 rounded-2xl border border-violet-200 bg-white p-5 shadow-sm">
+          <h3 className="mb-2 text-sm font-semibold text-violet-700">💡 Variations — pick one to scale</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {variations.map((v, i) => (
+              <div key={i} className="flex flex-col rounded-xl border border-slate-200 p-3">
+                <div className="font-medium text-slate-800">{v.name}</div>
+                {v.tags && v.tags.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {v.tags.map((t, j) => (
+                      <span key={j} className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] text-violet-700">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-2 flex-1 text-xs text-slate-500">{v.summary}</p>
+                <button
+                  onClick={() => useVariation(v)}
+                  className="mt-3 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+                >
+                  Use this →
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {history.length > 0 && !loading && (
         <section className="no-print mt-4">

@@ -151,3 +151,56 @@ export const PRODUCTION_SHEET_JSON_SCHEMA = {
   },
   required: ["dish", "baseYield", "targetYield", "ingredients"],
 } as const;
+
+/** ---------- VARIATIONS (the creative lens) ---------- */
+export const VariationsInputSchema = z
+  .object({
+    dish: z.string().optional().default(""),
+    recipeText: z.string().optional().default(""),
+    portionSize: z.string().optional().default("3 oz cooked"),
+    equipment: z.string().optional().default(""),
+  })
+  .refine((v) => (v.dish && v.dish.trim()) || (v.recipeText && v.recipeText.trim()), {
+    message: "Give a dish name or a recipe to riff on.",
+    path: ["dish"],
+  });
+export type VariationsInput = z.infer<typeof VariationsInputSchema>;
+
+export const VariationSchema = z.object({
+  name: z.string(),
+  summary: z.string(),
+  recipeText: z.string(),
+  basePortions: z.number().positive(),
+  portionSize: z.string(),
+  tags: z.array(z.string()).optional().default([]),
+});
+export type Variation = z.infer<typeof VariationSchema>;
+
+export const VariationsResultSchema = z.object({
+  dish: z.string(),
+  variations: z.array(VariationSchema),
+});
+export type VariationsResult = z.infer<typeof VariationsResultSchema>;
+
+export const VARIATIONS_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    dish: { type: "string" },
+    variations: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Variation name." },
+          summary: { type: "string", description: "One line: what changes and why." },
+          recipeText: { type: "string", description: "Complete ingredient list + brief method for this version." },
+          basePortions: { type: "number" },
+          portionSize: { type: "string" },
+          tags: { type: "array", items: { type: "string" } },
+        },
+        required: ["name", "summary", "recipeText", "basePortions", "portionSize"],
+      },
+    },
+  },
+  required: ["dish", "variations"],
+} as const;
