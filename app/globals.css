@@ -27,3 +27,51 @@ body {
     padding: 0 !important;
   }
 }
+
+/* ---------- Landing page animations ---------- */
+@keyframes gradientPan {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes drift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(12px, -22px) rotate(8deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.0); }
+  50% { box-shadow: 0 0 40px 6px rgba(124, 58, 237, 0.35); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spinSlow {
+  to { transform: rotate(360deg); }
+}
+
+.animate-gradient { background-size: 220% 220%; animation: gradientPan 14s ease infinite; }
+.animate-floaty { animation: floatY 6s ease-in-out infinite; }
+.animate-drift { animation: drift 9s ease-in-out infinite; }
+.animate-fadeup { animation: fadeUp 0.7s ease both; }
+.animate-glow { animation: pulseGlow 3.2s ease-in-out infinite; }
+.animate-spin-slow { animation: spinSlow 22s linear infinite; }
+
+.bar-anim { transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-gradient, .animate-floaty, .animate-drift, .animate-glow, .animate-spin-slow { animation: none; }
+  .reveal { opacity: 1; transform: none; }
+}
