@@ -14,6 +14,8 @@ import {
   type SheetHistoryEntry,
 } from "@/lib/storage";
 import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
+import { getKitchenNotes, addKitchenNote, removeKitchenNote, type KitchenNote } from "@/lib/kitchen";
+import { getPrices, addPrice, removePrice, costSheet, type PriceItem } from "@/lib/prices";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -42,10 +44,37 @@ export default function Home() {
   const [variations, setVariations] = useState<Variation[]>([]);
   const [varLoading, setVarLoading] = useState(false);
 
+  const [kitchen, setKitchen] = useState<KitchenNote[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [showKitchen, setShowKitchen] = useState(false);
+
+  const [prices, setPrices] = useState<PriceItem[]>([]);
+  const [pName, setPName] = useState("");
+  const [pUnit, setPUnit] = useState("");
+  const [pPrice, setPPrice] = useState("");
+  const [showPrices, setShowPrices] = useState(false);
+
   useEffect(() => {
     setSaved(getRecipes());
     setHistory(getHistory());
+    setKitchen(getKitchenNotes());
+    setPrices(getPrices());
   }, []);
+
+  function onAddNote() {
+    if (!newNote.trim()) return;
+    setKitchen(addKitchenNote(newNote));
+    setNewNote("");
+  }
+
+  function onAddPrice() {
+    const v = Number(pPrice);
+    if (!pName.trim() || !v) return;
+    setPrices(addPrice(pName, pUnit || "unit", v));
+    setPName("");
+    setPUnit("");
+    setPPrice("");
+  }
 
   function loadSample() {
     setRecipeName("Mexican Rice");
@@ -138,6 +167,7 @@ export default function Home() {
           equipment,
           holdingTime,
           image: imageData ? { dataBase64: imageData, mediaType: imageMediaType } : undefined,
+          kitchenNotes: kitchen.map((n) => n.text),
         }),
       });
       const data = await res.json();
@@ -244,6 +274,62 @@ export default function Home() {
             Scale a standardized recipe to today&apos;s covers — the way a chef would.
           </p>
         </header>
+
+        {/* Kitchen memory + Prices toolbar */}
+        <div className="no-print mb-4 flex flex-wrap gap-2">
+          <button onClick={() => setShowKitchen((s) => !s)} className={`${chipBtn} border-[#51613A] ${showKitchen ? "bg-[#51613A]/20" : ""} text-[#51613A] hover:bg-[#51613A]/15`}>
+            🧠 Kitchen memory ({kitchen.length})
+          </button>
+          <button onClick={() => setShowPrices((s) => !s)} className={`${chipBtn} border-[#E9A93C] ${showPrices ? "bg-[#E9A93C]/30" : ""} text-[#8a5a12] hover:bg-[#E9A93C]/25`}>
+            💲 Prices ({prices.length})
+          </button>
+        </div>
+
+        {showKitchen && (
+          <section className="no-print mb-4 rounded-3xl border-2 border-[#51613A] bg-[#FFFBF2] p-4 shadow-[0_6px_0_0_#3A2A1E]">
+            <h3 className="font-display text-base font-semibold text-[#51613A]">🧠 Kitchen memory — the learning loop</h3>
+            <p className="mt-0.5 text-xs text-[#3A2A1E]/60">
+              Corrections about YOUR kitchen, applied to every scale. e.g. &quot;my combi yields 48%, not 45%&quot; · &quot;use 10 oz garlic at 800, not 12&quot;.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <input className={inputCls} placeholder="Add a correction…" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddNote(); }} />
+              <button onClick={onAddNote} className="whitespace-nowrap rounded-full bg-[#51613A] px-4 py-2.5 text-sm font-bold text-[#FCF3E3] hover:bg-[#3f4d2d]">Add</button>
+            </div>
+            {kitchen.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {kitchen.map((n) => (
+                  <li key={n.id} className="flex items-start justify-between gap-2 rounded-xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] px-3 py-2 text-sm">
+                    <span>{n.text}</span>
+                    <button onClick={() => setKitchen(removeKitchenNote(n.id))} className="shrink-0 text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {showPrices && (
+          <section className="no-print mb-4 rounded-3xl border-2 border-[#E9A93C] bg-[#FFFBF2] p-4 shadow-[0_6px_0_0_#3A2A1E]">
+            <h3 className="font-display text-base font-semibold text-[#8a5a12]">💲 Price list — real food cost</h3>
+            <p className="mt-0.5 text-xs text-[#3A2A1E]/60">Your supplier prices, used to estimate food cost on each sheet. (Approximate — verify units.)</p>
+            <div className="mt-3 grid grid-cols-[1fr_4rem_4.5rem_auto] gap-2">
+              <input className={inputCls} placeholder="Ingredient" value={pName} onChange={(e) => setPName(e.target.value)} />
+              <input className={inputCls} placeholder="unit" value={pUnit} onChange={(e) => setPUnit(e.target.value)} />
+              <input className={inputCls} inputMode="decimal" placeholder="$/unit" value={pPrice} onChange={(e) => setPPrice(e.target.value)} />
+              <button onClick={onAddPrice} className="rounded-full bg-[#E9A93C] px-4 text-sm font-bold text-[#3A2A1E] hover:bg-[#d99a2d]">Add</button>
+            </div>
+            {prices.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {prices.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between rounded-xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] px-3 py-1.5 text-sm">
+                    <span><span className="font-semibold">{p.name}</span> — ${p.price.toFixed(2)} / {p.unit}</span>
+                    <button onClick={() => setPrices(removePrice(p.id))} className="text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Input card */}
         <section className="no-print rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-5 shadow-[0_10px_0_0_#3A2A1E]">
@@ -369,7 +455,7 @@ export default function Home() {
           </p>
         )}
 
-        {sheet && <Sheet sheet={sheet} />}
+        {sheet && <Sheet sheet={sheet} prices={prices} />}
 
         {sheet && (
           <section className="no-print mt-3 rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-4 shadow-[0_8px_0_0_#3A2A1E]">
@@ -413,8 +499,9 @@ function FirstRunHint() {
   );
 }
 
-function Sheet({ sheet }: { sheet: ProductionSheet }) {
+function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] }) {
   const [copied, setCopied] = useState(false);
+  const costing = prices.length > 0 ? costSheet(sheet, prices) : null;
 
   async function copyAll() {
     try {
@@ -448,6 +535,28 @@ function Sheet({ sheet }: { sheet: ProductionSheet }) {
           <button onClick={() => window.print()} className={sheetBtn}>🖨 Print / PDF</button>
         </div>
       </div>
+
+      {costing && costing.matched > 0 && (
+        <div className="mt-4 rounded-2xl border-2 border-[#51613A] bg-[#51613A]/8 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="font-display text-base font-semibold text-[#51613A]">💲 Estimated food cost</span>
+            <span className="text-xs text-[#3A2A1E]/55">{costing.matched}/{sheet.pullList.length} items priced</span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-8">
+            <div>
+              <div className="font-display text-2xl font-bold">${costing.total.toFixed(2)}</div>
+              <div className="text-xs text-[#3A2A1E]/55">total batch</div>
+            </div>
+            {costing.perCover != null && (
+              <div>
+                <div className="font-display text-2xl font-bold">${costing.perCover.toFixed(2)}</div>
+                <div className="text-xs text-[#3A2A1E]/55">per cover</div>
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-[#3A2A1E]/45">Approximate — matched by name to your price list; verify units.</p>
+        </div>
+      )}
 
       <h3 className="font-display mt-5 mb-2 text-base font-semibold">Scaled recipe</h3>
 

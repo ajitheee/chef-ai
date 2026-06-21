@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     if (isDemoMode()) {
       return NextResponse.json({
         ok: true,
-        sheet: demoScale(input.targetCovers, input.portionSize),
+        sheet: demoScale(input.targetCovers, input.portionSize, input.kitchenNotes.length),
         demo: true,
       });
     }

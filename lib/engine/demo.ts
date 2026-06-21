@@ -97,7 +97,7 @@ function fmt(value: number, unit: string): string {
 }
 
 /** Scale the Mexican Rice sample to `covers`, with dampening. */
-export function demoScale(covers: number, portionSize = "3 oz cooked"): ProductionSheet {
+export function demoScale(covers: number, portionSize = "3 oz cooked", notesApplied = 0): ProductionSheet {
   const target = covers > 0 ? covers : BASE_PORTIONS;
   const mult = target / BASE_PORTIONS;
 
@@ -146,6 +146,9 @@ export function demoScale(covers: number, portionSize = "3 oz cooked"): Producti
     baseYield: { portions: BASE_PORTIONS, portionSize: "3 oz cooked" },
     targetYield: { covers: target, portionSize, finishedYield: `${finishedLb} lb cooked (+4% buffer)` },
     assumptions: [
+      ...(notesApplied > 0
+        ? [`Applied ${notesApplied} learned kitchen correction${notesApplied > 1 ? "s" : ""} from your kitchen memory.`]
+        : []),
       "Jasmine rice yields ~3x cooked from dry.",
       "Stock at 2:1 to rice by volume (recipe pan method); ~12% held back to loosen on the line.",
       "DEMO PREVIEW — deterministic scale of the sample recipe. Add the API key to scale ANY recipe with the live engine.",

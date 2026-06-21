@@ -16,6 +16,7 @@ export const ScaleInputSchema = z
     equipment: z.string().optional().default(""),
     holdingTime: z.string().optional().default(""),
     image: ImageInputSchema.optional(),
+    kitchenNotes: z.array(z.string()).optional().default([]),
   })
   .refine((v) => (v.recipeText && v.recipeText.trim().length > 0) || !!v.image, {
     message: "Provide a recipe (text) or a photo of one.",

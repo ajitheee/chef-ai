@@ -67,6 +67,13 @@ export function buildUserContent(
   if (input.holdingTime && input.holdingTime.trim()) {
     lines.push(`EXPECTED HOLD TIME ON LINE: ${input.holdingTime.trim()}`);
   }
+  if (input.kitchenNotes && input.kitchenNotes.length > 0) {
+    lines.push(
+      ``,
+      `KITCHEN MEMORY — learned corrections from THIS kitchen. Apply them where relevant and note where you did:`
+    );
+    input.kitchenNotes.forEach((n) => lines.push(`- ${n}`));
+  }
   lines.push(
     ``,
     `Produce the full production sheet: scaled recipe (with effective multipliers + one-line reasons), batching plan, hot-line holding notes, and an AP pull list. State your assumptions.`
