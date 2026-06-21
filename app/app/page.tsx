@@ -264,9 +264,10 @@ export default function Home() {
 
       <main className="relative z-10 mx-auto max-w-3xl px-4 py-8">
         <header className="mb-6 no-print">
-          <a href="/" className="mb-2 inline-block text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">
-            ← Home
-          </a>
+          <div className="mb-2 flex items-center gap-4">
+            <a href="/" className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">← Home</a>
+            <a href="/app/planner" className="text-xs font-bold uppercase tracking-wide text-[#51613A] hover:text-[#3f4d2d]">Cycle-menu planner →</a>
+          </div>
           <h1 className="font-display text-3xl font-semibold">
             Digital Chef AI <span className="text-[#C24E33]">· Production Scaler</span>
           </h1>
