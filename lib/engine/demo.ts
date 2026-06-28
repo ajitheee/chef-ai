@@ -187,5 +187,147 @@ export function demoScale(covers: number, portionSize = "3 oz cooked", notesAppl
   };
 }
 
+/* ---------------------------------------------------------------------------
+ * Generic demo scaler — runs on the chef's ACTUAL pasted recipe (no API key).
+ * Parses ingredient lines, classifies each by keyword into a role, applies a
+ * rough dampening factor, and scales by covers. Clearly labeled as a rough,
+ * no-AI estimate. The LIVE engine reasons properly; this just keeps the demo
+ * honest ("it understood MY food") instead of always returning Mexican Rice.
+ * ------------------------------------------------------------------------- */
+
+type RoleRule = { kw: string[]; role: string; damp: number; kind?: "taste" | "asneeded" | "finishing" };
+const ROLE_RULES: RoleRule[] = [
+  { kw: ["kosher salt", "sea salt", "salt"], role: "high_impact", damp: 1, kind: "taste" },
+  { kw: ["as needed", "for frying", "to coat", "pan spray", "cooking spray"], role: "fat", damp: 1, kind: "asneeded" },
+  { kw: ["cilantro", "parsley", "chives", "fresh basil", "mint", "microgreen", "zest", "garnish", "scallion green"], role: "finishing", damp: 0.7, kind: "finishing" },
+  { kw: ["garlic", "ginger"], role: "flavor_base", damp: 0.8 },
+  { kw: ["onion", "shallot", "leek", "celery", "bell pepper", "green pepper", "tomato paste", "scallion", "mirepoix", "aromatic"], role: "flavor_base", damp: 0.92 },
+  { kw: ["jalapeno", "jalapeño", "serrano", "chile", "chili", "cayenne", "pepper flake", "hot sauce", "sriracha", "sambal"], role: "high_impact", damp: 0.62 },
+  { kw: ["cumin", "paprika", "oregano", "coriander", "chili powder", "black pepper", "white pepper", "spice", "seasoning", "vinegar", "soy sauce", "fish sauce", "lime juice", "lemon juice", "citrus", "cinnamon", "smoke", "extract", "sugar"], role: "high_impact", damp: 0.72 },
+  { kw: ["egg", "cornstarch", "starch", "roux", "gelatin", "xanthan", "breadcrumb", "masa"], role: "binder", damp: 1 },
+  { kw: ["oil", "butter", "ghee", "lard"], role: "fat", damp: 1, kind: "asneeded" },
+];
+
+const ALLERGEN_KW: { kw: string[]; label: string }[] = [
+  { kw: ["milk", "cheese", "butter", "cream", "yogurt", "dairy"], label: "milk/dairy" },
+  { kw: ["egg"], label: "egg" },
+  { kw: ["wheat", "flour", "bread", "pasta", "soy sauce"], label: "wheat/gluten" },
+  { kw: ["soy", "tofu", "edamame", "miso"], label: "soy" },
+  { kw: ["peanut"], label: "peanut" },
+  { kw: ["almond", "cashew", "walnut", "pecan", "pistachio", "hazelnut", "tree nut"], label: "tree nut" },
+  { kw: ["sesame", "tahini"], label: "sesame" },
+  { kw: ["shrimp", "crab", "lobster", "shellfish", "clam", "scallop"], label: "shellfish" },
+  { kw: ["fish", "salmon", "tuna", "anchovy", "cod"], label: "fish" },
+];
+
+function classify(name: string): { role: string; damp: number; kind?: "taste" | "asneeded" | "finishing" } {
+  const n = name.toLowerCase();
+  for (const r of ROLE_RULES) if (r.kw.some((k) => n.includes(k))) return { role: r.role, damp: r.damp, kind: r.kind };
+  return { role: "structural", damp: 1 };
+}
+
+type ParsedLine = { name: string; num: number | null; unit: string; raw: string };
+function parseLine(line: string): ParsedLine | null {
+  let s = line.trim().replace(/^[-*•·]\s*/, "");
+  if (!s) return null;
+  if (/^(method|prep|directions?|instructions?|serv|note|yield|makes|preparation)\b/i.test(s)) return null;
+  const frac = s.match(/^(\d+)\s*\/\s*(\d+)\s*([a-zA-Z#"]+)?\s*(.*)$/);
+  const dec = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z#"]+)?\s*(.*)$/);
+  if (frac) {
+    return { num: Number(frac[1]) / Number(frac[2]), unit: (frac[3] || "").toLowerCase(), name: (frac[4] || "").trim() || s, raw: s };
+  }
+  if (dec) {
+    return { num: Number(dec[1]), unit: (dec[2] || "").toLowerCase(), name: (dec[3] || "").trim() || s, raw: s };
+  }
+  return { num: null, unit: "", name: s, raw: s };
+}
+
+function fmtGeneric(value: number, unit: string): string {
+  if (unit === "oz" && value >= 16) return `${trim(value / 16)} lb`;
+  if (unit === "tbsp" && value >= 16) return `${trim(value / 16)} cups`;
+  if ((unit === "cup" || unit === "cups") && value >= 16) return `${trim(value)} cups (~${trim(value / 16)} gal)`;
+  return unit ? `${trim(value)} ${unit}` : trim(value);
+}
+
+export function demoScaleFromText(
+  recipeText: string,
+  basePortions: number,
+  covers: number,
+  portionSize: string,
+  notesApplied = 0
+): ProductionSheet {
+  const lines = recipeText.split("\n");
+  const parsed = lines.map(parseLine).filter((p): p is ParsedLine => !!p);
+  // Pull a dish name: a leading non-quantity line that isn't an ingredient.
+  let dish = "Your recipe";
+  if (parsed.length && parsed[0].num === null && parsed[0].name.split(" ").length <= 6) {
+    dish = parsed[0].name;
+  }
+  const ingLines = parsed.filter((p) => p.name && !(p.num === null && p === parsed[0] && dish !== "Your recipe"));
+
+  if (ingLines.length === 0) {
+    // Couldn't parse anything useful — fall back to the curated sample.
+    return demoScale(covers, portionSize, notesApplied);
+  }
+
+  const base = basePortions > 0 ? basePortions : 50;
+  const mult = (covers > 0 ? covers : base) / base;
+  const allergens = new Set<string>();
+
+  const ingredients = ingLines.map((p) => {
+    const c = classify(p.name);
+    for (const a of ALLERGEN_KW) if (a.kw.some((k) => p.name.toLowerCase().includes(k))) allergens.add(a.label);
+    if (c.kind === "taste") return { item: p.name, scaledQty: "to taste, in stages", unit: p.unit, role: c.role, baseQty: p.raw, multiplier: "staged", note: "season on the line" };
+    if (c.kind === "asneeded") return { item: p.name, scaledQty: "as needed (cook in batches)", unit: p.unit, role: c.role, baseQty: p.raw, multiplier: "by surface area", note: "" };
+    if (p.num === null) return { item: p.name, scaledQty: "scale to taste", unit: p.unit, role: c.role, baseQty: p.raw, multiplier: "", note: "" };
+    const eff = mult * c.damp;
+    const scaled = p.num * eff;
+    return {
+      item: p.name,
+      scaledQty: fmtGeneric(scaled, p.unit),
+      unit: p.unit,
+      role: c.role,
+      baseQty: `${trim(p.num)} ${p.unit}`.trim(),
+      multiplier: c.damp < 1 ? `x${trim(eff)} (dampened)` : `x${trim(mult)}`,
+      note: c.role === "high_impact" && c.damp < 1 ? "dampened — season up at the end" : "",
+    };
+  });
+
+  // Finished yield from portion size if it contains oz.
+  const ozMatch = portionSize.match(/(\d+(?:\.\d+)?)\s*oz/i);
+  const finishedYield = ozMatch ? `${round((covers * Number(ozMatch[1]) * 1.04) / 16)} lb (+4% buffer)` : "—";
+
+  return {
+    dish,
+    mode: "savory",
+    baseYield: { portions: base, portionSize },
+    targetYield: { covers: covers > 0 ? covers : base, portionSize, finishedYield },
+    assumptions: [
+      ...(notesApplied > 0 ? [`Noted ${notesApplied} kitchen correction${notesApplied > 1 ? "s" : ""} (applied by the live engine).`] : []),
+      "DEMO PREVIEW — a rough linear+dampening estimate on YOUR recipe (no AI). The live engine reasons about ingredient function, batching, holding & food safety properly. Verify amounts before production.",
+    ],
+    ingredients,
+    method: [],
+    batching: [
+      "Large volumes exceed single-vessel capacity — cook in batches; don't overcrowd (sear/toast, don't steam).",
+      "Cook starches and proteins in batches for even results.",
+    ],
+    holding: [
+      "On a hot line, starches keep absorbing and sauces tighten — cook starches ~90%, hold back some liquid, season under and correct on the line.",
+      "Add fresh herbs / crisp items at the pass; hold each batch <=90 min and refresh.",
+    ],
+    pullList: ingredients
+      .filter((i) => i.role !== "fat" && i.role !== "finishing" && !/salt/i.test(i.item) && i.scaledQty !== "scale to taste")
+      .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" })),
+    safetyFlags: [
+      "Hold hot at 135F+; cool leftovers in shallow pans (135->70F within 2 h, 70->41F within 4 more h). Verify against USDA/ServSafe.",
+    ],
+    allergenFlags:
+      allergens.size > 0
+        ? [`Possible allergens detected: ${[...allergens].join(", ")}. Verify supplier labels and cross-contact before claiming allergen-free.`]
+        : [],
+  };
+}
+
 /** Back-compat: the default 800-cover sheet. */
 export const DEMO_SHEET: ProductionSheet = demoScale(800);

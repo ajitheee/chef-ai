@@ -14,6 +14,7 @@ export type SavedRecipe = {
   portionSize: string;
   equipment?: string;
   holdingTime?: string;
+  lastCovers?: number;
 };
 
 const KEY = "chefai.recipes.v1";

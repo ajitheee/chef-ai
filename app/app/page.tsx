@@ -127,6 +127,7 @@ export default function Home() {
         portionSize,
         equipment,
         holdingTime,
+        lastCovers: Number(targetCovers) || undefined,
       })
     );
   }
@@ -135,6 +136,7 @@ export default function Home() {
     setRecipeName(r.name);
     setRecipeText(r.recipeText);
     setBasePortions(String(r.basePortions));
+    setTargetCovers(r.lastCovers ? String(r.lastCovers) : "");
     setPortionSize(r.portionSize);
     setEquipment(r.equipment || "");
     setHoldingTime(r.holdingTime || "");
@@ -400,7 +402,20 @@ export default function Home() {
             </div>
           </div>
 
-          <button onClick={onScale} disabled={loading} className="mt-5 w-full rounded-full bg-[#C24E33] px-4 py-3.5 text-sm font-bold text-[#FCF3E3] shadow-[0_6px_0_0_#A33E27] transition hover:translate-y-0.5 hover:shadow-[0_3px_0_0_#A33E27] disabled:opacity-50 disabled:shadow-none">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-[#3A2A1E]/50">Quick count:</span>
+            {[100, 200, 400, 800, 1200].map((c) => (
+              <button
+                key={c}
+                onClick={() => setTargetCovers(String(c))}
+                className={`rounded-full border-2 px-3 py-1 text-xs font-bold ${targetCovers === String(c) ? "border-[#C24E33] bg-[#C24E33]/15 text-[#C24E33]" : "border-[#3A2A1E]/20 text-[#3A2A1E]/60 hover:bg-[#3A2A1E]/5"}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={onScale} disabled={loading} className="mt-4 w-full rounded-full bg-[#C24E33] px-4 py-3.5 text-sm font-bold text-[#FCF3E3] shadow-[0_6px_0_0_#A33E27] transition hover:translate-y-0.5 hover:shadow-[0_3px_0_0_#A33E27] disabled:opacity-50 disabled:shadow-none">
             {loading ? "Scaling…" : "Scale recipe →"}
           </button>
 
@@ -452,7 +467,9 @@ export default function Home() {
 
         {sheet && demo && (
           <p className="no-print mt-6 rounded-2xl border-2 border-[#E9A93C] bg-[#E9A93C]/15 px-4 py-3 text-sm text-[#3A2A1E]">
-            🧪 <span className="font-bold">Demo preview</span> — scaling the sample recipe (Mexican Rice) to your cover count, with dampening. Add the API key to scale <span className="font-bold">any</span> recipe with the live engine.
+            🧪 <span className="font-bold">Demo preview</span> — a rough linear+dampening estimate for{" "}
+            <span className="font-bold">{sheet.dish}</span> (no AI yet). Add the API key to unlock the full
+            chef-logic engine on <span className="font-bold">any</span> recipe.
           </p>
         )}
 
@@ -537,25 +554,31 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
         </div>
       </div>
 
-      {costing && costing.matched > 0 && (
+      {costing && costing.priced > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#51613A] bg-[#51613A]/8 p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-display text-base font-semibold text-[#51613A]">💲 Estimated food cost</span>
-            <span className="text-xs text-[#3A2A1E]/55">{costing.matched}/{sheet.pullList.length} items priced</span>
+            <span className="text-xs text-[#3A2A1E]/55">
+              {costing.priced}/{sheet.pullList.length} priced{costing.mismatched > 0 ? ` · ${costing.mismatched} unit mismatch` : ""}
+            </span>
           </div>
-          <div className="mt-2 flex flex-wrap gap-8">
+          <div className="mt-2 flex flex-wrap items-center gap-8">
             <div>
               <div className="font-display text-2xl font-bold">${costing.total.toFixed(2)}</div>
-              <div className="text-xs text-[#3A2A1E]/55">total batch</div>
+              <div className="text-xs text-[#3A2A1E]/55">priced items total</div>
             </div>
-            {costing.perCover != null && (
+            {costing.perCover != null ? (
               <div>
                 <div className="font-display text-2xl font-bold">${costing.perCover.toFixed(2)}</div>
                 <div className="text-xs text-[#3A2A1E]/55">per cover</div>
               </div>
+            ) : (
+              <div className="max-w-[14rem] text-xs text-[#3A2A1E]/55">Per-cover hidden until ≥60% of the list is priced in matching units.</div>
             )}
           </div>
-          <p className="mt-2 text-xs text-[#3A2A1E]/45">Approximate — matched by name to your price list; verify units.</p>
+          <p className="mt-2 text-xs text-[#3A2A1E]/45">
+            Partial estimate — only unit-matched items counted{costing.mismatched > 0 ? "; unit mismatches excluded" : ""}. Add prices in matching units (lb/oz, gal/qt/cup, each) for a full cost.
+          </p>
         </div>
       )}
 
