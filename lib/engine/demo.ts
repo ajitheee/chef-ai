@@ -1,4 +1,5 @@
 import type { ProductionSheet, VariationsResult } from "./schema";
+import { detectSafety, isFunctionalChemistry } from "./safety";
 
 /** True when no API key is configured — the app runs in demo mode. */
 export function isDemoMode(): boolean {
@@ -273,23 +274,32 @@ export function demoScaleFromText(
   const base = basePortions > 0 ? basePortions : 50;
   const mult = (covers > 0 ? covers : base) / base;
   const allergens = new Set<string>();
+  // Brine/cure/pickle/ferment = functional chemistry -> salt & acid scale LINEARLY (never dampen).
+  const funcChem = isFunctionalChemistry(recipeText);
+  const safetyRules = detectSafety(recipeText);
 
   const ingredients = ingLines.map((p) => {
-    const c = classify(p.name);
+    const cls = classify(p.name);
     for (const a of ALLERGEN_KW) if (a.kw.some((k) => p.name.toLowerCase().includes(k))) allergens.add(a.label);
-    if (c.kind === "taste") return { item: p.name, scaledQty: "to taste, in stages", unit: p.unit, role: c.role, baseQty: p.raw, multiplier: "staged", note: "season on the line" };
-    if (c.kind === "asneeded") return { item: p.name, scaledQty: "as needed (cook in batches)", unit: p.unit, role: c.role, baseQty: p.raw, multiplier: "by surface area", note: "" };
-    if (p.num === null) return { item: p.name, scaledQty: "scale to taste", unit: p.unit, role: c.role, baseQty: p.raw, multiplier: "", note: "" };
-    const eff = mult * c.damp;
+    // In a functional-chemistry prep, salt / cure / acid are ratios, not seasoning.
+    const chem = funcChem && (cls.role === "high_impact" || /\b(salt|cure|nitrite|sugar|vinegar|brine)\b/.test(p.name.toLowerCase()));
+    const role = chem ? "functional" : cls.role;
+    const damp = chem ? 1 : cls.damp;
+    const kind = chem ? undefined : cls.kind;
+
+    if (kind === "taste") return { item: p.name, scaledQty: "to taste, in stages", unit: p.unit, role, baseQty: p.raw, multiplier: "staged", note: "season on the line" };
+    if (kind === "asneeded") return { item: p.name, scaledQty: "as needed (cook in batches)", unit: p.unit, role, baseQty: p.raw, multiplier: "by surface area", note: "" };
+    if (p.num === null) return { item: p.name, scaledQty: "scale to taste", unit: p.unit, role, baseQty: p.raw, multiplier: "", note: "" };
+    const eff = mult * damp;
     const scaled = p.num * eff;
     return {
       item: p.name,
       scaledQty: fmtGeneric(scaled, p.unit),
       unit: p.unit,
-      role: c.role,
+      role,
       baseQty: `${trim(p.num)} ${p.unit}`.trim(),
-      multiplier: c.damp < 1 ? `x${trim(eff)} (dampened)` : `x${trim(mult)}`,
-      note: c.role === "high_impact" && c.damp < 1 ? "dampened — season up at the end" : "",
+      multiplier: chem ? `x${trim(mult)} (ratio held — safety)` : damp < 1 ? `x${trim(eff)} (dampened)` : `x${trim(mult)}`,
+      note: chem ? "functional chemistry — scaled to ratio, NOT dampened" : role === "high_impact" && damp < 1 ? "dampened — season up at the end" : "",
     };
   });
 
@@ -299,11 +309,12 @@ export function demoScaleFromText(
 
   return {
     dish,
-    mode: "savory",
+    mode: funcChem ? "safety_chemistry" : "savory",
     baseYield: { portions: base, portionSize },
     targetYield: { covers: covers > 0 ? covers : base, portionSize, finishedYield },
     assumptions: [
       ...(notesApplied > 0 ? [`Noted ${notesApplied} kitchen correction${notesApplied > 1 ? "s" : ""} (applied by the live engine).`] : []),
+      ...(funcChem ? ["Detected a brine/cure/preservation prep — salt & acid scaled LINEARLY to hold the safety ratio, not dampened."] : []),
       "DEMO PREVIEW — a rough linear+dampening estimate on YOUR recipe (no AI). The live engine reasons about ingredient function, batching, holding & food safety properly. Verify amounts before production.",
     ],
     ingredients,
@@ -317,9 +328,10 @@ export function demoScaleFromText(
       "Add fresh herbs / crisp items at the pass; hold each batch <=90 min and refresh.",
     ],
     pullList: ingredients
-      .filter((i) => i.role !== "fat" && i.role !== "finishing" && !/salt/i.test(i.item) && i.scaledQty !== "scale to taste")
+      .filter((i) => i.role !== "fat" && i.role !== "finishing" && !(/salt/i.test(i.item) && !funcChem) && i.scaledQty !== "scale to taste")
       .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" })),
     safetyFlags: [
+      ...safetyRules.map((r) => `[${r.domain}] ${r.rule} (${r.source})`),
       "Hold hot at 135F+; cool leftovers in shallow pans (135->70F within 2 h, 70->41F within 4 more h). Verify against USDA/ServSafe.",
     ],
     allergenFlags:

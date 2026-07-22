@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SAMPLE } from "@/lib/engine/sample";
+import { SAMPLE, PRESETS, type Preset } from "@/lib/engine/sample";
 import type { ProductionSheet, Variation } from "@/lib/engine/schema";
 import {
   getRecipes,
@@ -84,6 +84,18 @@ export default function Home() {
     setPortionSize(SAMPLE.portionSize);
     setEquipment(SAMPLE.equipment || "");
     setHoldingTime(SAMPLE.holdingTime || "");
+    clearImage();
+    setSheet(null);
+    setError("");
+  }
+
+  function loadPreset(p: Preset) {
+    setRecipeName(p.name);
+    setRecipeText(p.recipeText);
+    setBasePortions(String(p.basePortions));
+    setPortionSize(p.portionSize);
+    setEquipment(p.equipment || "");
+    setHoldingTime(p.holdingTime || "");
     clearImage();
     setSheet(null);
     setError("");
@@ -236,7 +248,9 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Failed to get variations.");
-      setVariations((data.result?.variations || []) as Variation[]);
+      const vs = (data.result?.variations || []) as Variation[];
+      setVariations(vs);
+      if (vs.length === 0 && data.note) setError(data.note);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -349,6 +363,19 @@ export default function Home() {
                 Load sample
               </button>
             </div>
+          </div>
+
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-[#3A2A1E]/50">His recipes:</span>
+            {PRESETS.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => loadPreset(p)}
+                className="rounded-full border-2 border-[#C24E33]/40 bg-[#C24E33]/8 px-3 py-1 text-xs font-bold text-[#C24E33] hover:bg-[#C24E33]/15"
+              >
+                {p.name}
+              </button>
+            ))}
           </div>
 
           {saved.length > 0 && (

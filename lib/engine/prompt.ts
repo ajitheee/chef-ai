@@ -1,5 +1,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ScaleInput } from "./schema";
+import { detectSafety, HARD_TEMPS } from "./safety";
+
+/** Engine version — stamped on outputs for auditability/reproducibility. */
+export const ENGINE_VERSION = "chef-logic v4.0";
 
 /**
  * Digital Chef AI — engine aligned to the Universal Chef AI master logic v4.0,
@@ -80,6 +84,15 @@ export function buildUserContent(
     );
     input.kitchenNotes.forEach((n) => lines.push(`- ${n}`));
   }
+
+  // Retrieved food-safety reference — authoritative, quote verbatim, never compute around.
+  const safety = detectSafety(input.recipeText || "");
+  if (safety.length > 0) {
+    lines.push(``, `FOOD-SAFETY REFERENCE (authoritative — quote these, do NOT compute around them):`);
+    safety.forEach((r) => lines.push(`- [${r.domain}] ${r.rule} (${r.source})`));
+  }
+  lines.push(``, `HARD SAFETY NUMBERS (use verbatim, never invent): ${HARD_TEMPS.join(" ")}`);
+
   lines.push(
     ``,
     `Produce the full production sheet: scaled recipe (with effective multipliers + one-line reasons), batching plan, hot-line holding notes, and an AP pull list. State your assumptions.`

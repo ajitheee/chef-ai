@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   SYSTEM_PROMPT,
+  ENGINE_VERSION,
   buildUserContent,
   buildRefineMessage,
   buildVariationsMessage,
@@ -21,7 +22,7 @@ import {
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 
 /**
- * Calls Claude with the v3.3 dining-hall engine and returns a validated
+ * Calls Claude with the v4.0 dining-hall engine and returns a validated
  * production sheet. The Anthropic client is created lazily so the app builds
  * and imports fine even before an API key exists.
  */
@@ -37,7 +38,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     // NOTE: prompt caching (a ~90% cost saver on the large system prompt) is a
     // Week-2 optimization — re-add via the SDK's caching API once the model/SDK
     // version is locked. Trivial cost at design-partner volume without it.
@@ -62,7 +63,9 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
   if (!parsed.success) {
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
-  return parsed.data;
+  const sheet = parsed.data;
+  sheet.assumptions = [...sheet.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}).`];
+  return sheet;
 }
 
 /**
@@ -80,7 +83,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     tools: [
       {
@@ -123,7 +126,7 @@ export async function refineSheet(
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     tools: [
       {
@@ -147,5 +150,13 @@ export async function refineSheet(
   if (!parsed.success) {
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
-  return parsed.data;
+  const updated = parsed.data;
+  // Preserve safety/allergen flags the model may have silently dropped — empty
+  // defaults must never wipe a hazard flagged on the prior sheet.
+  return {
+    ...updated,
+    safetyFlags: updated.safetyFlags.length ? updated.safetyFlags : sheet.safetyFlags,
+    allergenFlags: updated.allergenFlags.length ? updated.allergenFlags : sheet.allergenFlags,
+    assumptions: [...updated.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}) · refined.`],
+  };
 }
