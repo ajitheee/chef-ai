@@ -16,6 +16,7 @@ import {
 import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
 import { getKitchenNotes, addKitchenNote, removeKitchenNote, type KitchenNote } from "@/lib/kitchen";
 import { getPrices, addPrice, removePrice, costSheet, type PriceItem } from "@/lib/prices";
+import { downloadBackup, restoreBackup } from "@/lib/backup";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -54,6 +55,8 @@ export default function Home() {
   const [pPrice, setPPrice] = useState("");
   const [showPrices, setShowPrices] = useState(false);
 
+  const [dataNote, setDataNote] = useState("");
+
   useEffect(() => {
     setSaved(getRecipes());
     setHistory(getHistory());
@@ -74,6 +77,28 @@ export default function Home() {
     setPName("");
     setPUnit("");
     setPPrice("");
+  }
+
+  function onRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const res = restoreBackup(String(reader.result), "merge");
+        setSaved(getRecipes());
+        setHistory(getHistory());
+        setKitchen(getKitchenNotes());
+        setPrices(getPrices());
+        setDataNote(
+          `✓ Restored — ${res.recipes} recipes, ${res.prices} prices, ${res.kitchen} kitchen notes, ${res.history} sheets.`
+        );
+      } catch (err) {
+        setDataNote(err instanceof Error ? err.message : "Couldn't read that backup file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ""; // let the same file be picked again
   }
 
   function loadSample() {
@@ -292,15 +317,29 @@ export default function Home() {
           </p>
         </header>
 
-        {/* Kitchen memory + Prices toolbar */}
-        <div className="no-print mb-4 flex flex-wrap gap-2">
+        {/* Kitchen memory + Prices + Data toolbar */}
+        <div className="no-print mb-4 flex flex-wrap items-center gap-2">
           <button onClick={() => setShowKitchen((s) => !s)} className={`${chipBtn} border-[#51613A] ${showKitchen ? "bg-[#51613A]/20" : ""} text-[#51613A] hover:bg-[#51613A]/15`}>
             🧠 Kitchen memory ({kitchen.length})
           </button>
           <button onClick={() => setShowPrices((s) => !s)} className={`${chipBtn} border-[#E9A93C] ${showPrices ? "bg-[#E9A93C]/30" : ""} text-[#8a5a12] hover:bg-[#E9A93C]/25`}>
             💲 Prices ({prices.length})
           </button>
+          <span className="mx-1 hidden h-5 w-px bg-[#3A2A1E]/15 sm:block" aria-hidden />
+          <button onClick={() => downloadBackup()} title="Save all your recipes, prices and notes to a file" className={`${chipBtn} border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
+            ⬇ Backup
+          </button>
+          <label title="Restore from a backup file (merges — nothing is deleted)" className={`${chipBtn} cursor-pointer border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
+            ⬆ Restore
+            <input type="file" accept="application/json,.json" className="hidden" onChange={onRestoreFile} />
+          </label>
         </div>
+
+        {dataNote && (
+          <p className="no-print mb-4 rounded-xl border-2 border-[#51613A]/30 bg-[#51613A]/10 px-3 py-2 text-xs font-semibold text-[#51613A]">
+            {dataNote}
+          </p>
+        )}
 
         {showKitchen && (
           <section className="no-print mb-4 rounded-3xl border-2 border-[#51613A] bg-[#FFFBF2] p-4 shadow-[0_6px_0_0_#3A2A1E]">
