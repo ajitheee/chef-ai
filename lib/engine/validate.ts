@@ -78,6 +78,11 @@ const ALLERGENS: Record<string, RegExp> = {
   sesame: /\b(sesame|tahini)\b/i,
 };
 
+/** Common allergens implied by ingredient names (shared with the HACCP builder). */
+export function detectAllergens(text: string): string[] {
+  return Object.keys(ALLERGENS).filter((a) => ALLERGENS[a].test(text));
+}
+
 /** Run the validation locks against a finished sheet. */
 export function validateSheet(sheet: ProductionSheet): Check[] {
   const checks: Check[] = [];
@@ -130,7 +135,7 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
 
   // 3 — Allergen check: ingredients that imply allergens must be flagged.
   const text = (sheet.ingredients.map((i) => i.item).join(" ") + " " + sheet.dish).toLowerCase();
-  const detected = Object.keys(ALLERGENS).filter((a) => ALLERGENS[a].test(text));
+  const detected = detectAllergens(text);
   if (detected.length === 0) {
     checks.push({ label: "Allergen check", status: "info", detail: "No common allergens detected in the ingredient names." });
   } else if (sheet.allergenFlags.length > 0) {

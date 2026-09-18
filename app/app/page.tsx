@@ -18,6 +18,7 @@ import { getKitchenNotes, addKitchenNote, removeKitchenNote, type KitchenNote } 
 import { getPrices, addPrice, removePrice, costSheet, type PriceItem } from "@/lib/prices";
 import { downloadBackup, restoreBackup } from "@/lib/backup";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
+import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind } from "@/lib/engine/haccp";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -589,6 +590,8 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
   const costing = prices.length > 0 ? costSheet(sheet, prices) : null;
   const checks = validateSheet(sheet);
   const headline = checksHeadline(checks);
+  const [showHaccp, setShowHaccp] = useState(false);
+  const haccp = showHaccp ? buildHaccp(sheet) : null;
 
   async function copyAll() {
     try {
@@ -620,6 +623,9 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
             </button>
           )}
           <button onClick={() => window.print()} className={sheetBtn}>🖨 Print / PDF</button>
+          <button onClick={() => setShowHaccp((s) => !s)} className={`${sheetBtn} ${showHaccp ? "bg-[#3A2A1E]/8" : ""}`}>
+            {showHaccp ? "🛡 Hide HACCP" : "🛡 HACCP summary"}
+          </button>
         </div>
       </div>
 
@@ -643,6 +649,8 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
           ))}
         </ul>
       </div>
+
+      {haccp && <HaccpPanel plan={haccp} />}
 
       {costing && costing.priced > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#51613A] bg-[#51613A]/8 p-4">
@@ -736,6 +744,81 @@ function Block({ title, items, muted }: { title: string; items: string[]; muted?
           <li key={i}>{t}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function HaccpPanel({ plan }: { plan: HaccpPlan }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(haccpText(plan));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+  const kindCls: Record<ControlKind, string> = {
+    CCP: "bg-[#C24E33]/15 text-[#C24E33]",
+    CP: "bg-[#51613A]/15 text-[#51613A]",
+    QCP: "bg-[#E9A93C]/30 text-[#8a5a12]",
+  };
+  const count = (k: ControlKind) => plan.entries.filter((x) => x.kind === k).length;
+  const fields: { k: string; get: (x: HaccpPlan["entries"][number]) => string }[] = [
+    { k: "Hazard", get: (x) => x.hazard },
+    { k: "Critical limit", get: (x) => x.limit },
+    { k: "Monitoring", get: (x) => x.monitor },
+    { k: "Corrective action", get: (x) => x.corrective },
+    { k: "Verification", get: (x) => x.verify },
+    { k: "Record", get: (x) => x.record },
+  ];
+
+  return (
+    <div className="haccp-panel mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-display text-base font-semibold">🛡 HACCP / CCP summary</div>
+          <div className="text-xs text-[#3A2A1E]/55">
+            {count("CCP")} critical control points · {count("CP")} control points · {count("QCP")} quality point
+          </div>
+        </div>
+        <button onClick={copy} className="no-print rounded-full border-2 border-[#3A2A1E]/25 px-3 py-1.5 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5">
+          {copied ? "✓ Copied" : "📋 Copy plan"}
+        </button>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#3A2A1E]/55">
+        {(["CCP", "CP", "QCP"] as ControlKind[]).map((k) => (
+          <span key={k} className="inline-flex items-center gap-1.5">
+            <span className={`rounded-full px-2 py-0.5 font-bold ${kindCls[k]}`}>{k}</span>
+            {KIND_MEANING[k].split(" — ")[0]}
+          </span>
+        ))}
+      </div>
+
+      <ol className="mt-3 space-y-2">
+        {plan.entries.map((x, i) => (
+          <li key={i} className="rounded-2xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] p-3">
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${kindCls[x.kind]}`}>{x.kind}</span>
+              <span className="font-semibold">
+                {i + 1}. {x.step}
+              </span>
+            </div>
+            <dl className="mt-2 grid gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
+              {fields.map((f) => (
+                <div key={f.k}>
+                  <dt className="text-[11px] font-bold uppercase tracking-wide text-[#3A2A1E]/45">{f.k}</dt>
+                  <dd className="text-[#3A2A1E]/80">{f.get(x)}</dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ol>
+
+      <p className="mt-3 text-xs text-[#3A2A1E]/45">{plan.notes.join(" ")}</p>
     </div>
   );
 }

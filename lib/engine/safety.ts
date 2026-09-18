@@ -9,13 +9,13 @@ export type SafetyRule = { domain: string; kw: string[]; rule: string; source: s
 export const SAFETY_RULES: SafetyRule[] = [
   {
     domain: "brine/cure",
-    kw: ["brine", "brined", "cure", "curing", "corned", "pastrami", "prague powder", "pink salt", "nitrite", "saltpeter"],
+    kw: ["brine", "brined", "brining", "cure", "cured", "curing", "corned", "pastrami", "prague powder", "pink salt", "nitrite", "saltpeter"],
     rule: "Brine/cure salt (and nitrite) is FUNCTIONAL CHEMISTRY, not seasoning — scale the salt/cure LINEARLY with the water and meat to preserve the exact concentration. NEVER dampen it. Nitrite has strict ppm limits; follow a validated cure calculator.",
     source: "USDA FSIS / NCHFP",
   },
   {
     domain: "pickling/canning",
-    kw: ["pickle", "pickling", "canning", "water bath", "shelf stable", "shelf-stable", "preserve", "jam", "acidify"],
+    kw: ["pickle", "pickled", "pickling", "canning", "water bath", "shelf stable", "shelf-stable", "preserve", "preserved", "preserves", "jam", "acidify", "acidified"],
     rule: "Preservation acidity is safety-critical — for water-bath canning the product must reach pH < 4.6 (add acid, or pressure-can). Do NOT reduce vinegar/acid for flavor. Use a tested NCHFP recipe.",
     source: "NCHFP",
   },
@@ -33,7 +33,7 @@ export const SAFETY_RULES: SafetyRule[] = [
   },
   {
     domain: "fermentation",
-    kw: ["ferment", "fermented", "kraut", "kimchi", "lacto"],
+    kw: ["ferment", "fermented", "fermenting", "fermentation", "kraut", "sauerkraut", "kimchi", "lacto"],
     rule: "Fermentation salt % is functional (it controls the culture and safety) — hold the exact salt-by-weight ratio; do not dampen. Follow a validated fermentation ratio.",
     source: "NCHFP",
   },
@@ -46,10 +46,16 @@ export const HARD_TEMPS = [
   "2-stage cooling: 135->70F within 2 h, then 70->41F within 4 more h (<=6 h total), in SHALLOW pans; reheat to 165F within 2 h.",
 ];
 
-/** Safety rules whose keywords appear in the recipe text. */
+/** Whole-word match — "rop" must not fire on "properly", "drop", or "chopped". */
+function hasWord(text: string, kw: string): boolean {
+  const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(text);
+}
+
+/** Safety rules whose keywords appear (as whole words) in the recipe text. */
 export function detectSafety(text: string): SafetyRule[] {
-  const t = (text || "").toLowerCase();
-  return SAFETY_RULES.filter((r) => r.kw.some((k) => t.includes(k)));
+  const t = text || "";
+  return SAFETY_RULES.filter((r) => r.kw.some((k) => hasWord(t, k)));
 }
 
 /** True if the recipe is a functional-chemistry prep (do NOT dampen salt/acid). */
