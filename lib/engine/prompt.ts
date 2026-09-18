@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { ScaleInput } from "./schema";
 import { detectSafety, HARD_TEMPS } from "./safety";
+import { yieldReferenceText } from "./yield";
 
 /** Engine version — stamped on outputs for auditability/reproducibility. */
 export const ENGINE_VERSION = "chef-logic v4.0";
@@ -92,6 +93,10 @@ export function buildUserContent(
     safety.forEach((r) => lines.push(`- [${r.domain}] ${r.rule} (${r.source})`));
   }
   lines.push(``, `HARD SAFETY NUMBERS (use verbatim, never invent): ${HARD_TEMPS.join(" ")}`);
+
+  // Standard yield + density tables — the same numbers the deterministic demo
+  // engine uses, so both engines order the same way. Kitchen memory overrides.
+  lines.push(``, yieldReferenceText());
 
   lines.push(
     ``,

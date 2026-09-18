@@ -1,5 +1,9 @@
 import type { ProductionSheet, VariationsResult } from "./schema";
 import { detectSafety, isFunctionalChemistry } from "./safety";
+import { applyPurchasing } from "./yield";
+
+const YIELD_ASSUMPTION =
+  "Pull list converts recipe (EP) amounts to as-purchased (AP) order quantities using standard yield + density tables — verify against your kitchen's actual yields.";
 
 /** True when no API key is configured — the app runs in demo mode. */
 export function isDemoMode(): boolean {
@@ -152,6 +156,7 @@ export function demoScale(covers: number, portionSize = "3 oz cooked", notesAppl
         : []),
       "Jasmine rice yields ~3x cooked from dry.",
       "Stock at 2:1 to rice by volume (recipe pan method); ~12% held back to loosen on the line.",
+      YIELD_ASSUMPTION,
       "DEMO PREVIEW — deterministic scale of the sample recipe. Add the API key to scale ANY recipe with the live engine.",
     ],
     ingredients,
@@ -175,9 +180,11 @@ export function demoScale(covers: number, portionSize = "3 oz cooked", notesAppl
       "Hold each pan <=90 min and refresh from the line rather than parking all pans at once.",
       "Fold cilantro in at the pass, never into the held pans.",
     ],
-    pullList: ingredients
-      .filter((i) => i.role !== "fat" && i.item !== "Kosher salt")
-      .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" })),
+    pullList: applyPurchasing(
+      ingredients
+        .filter((i) => i.role !== "fat" && i.item !== "Kosher salt")
+        .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" }))
+    ),
     safetyFlags: [
       "Hold hot at 135F (57C) or above — check each pan with a calibrated probe.",
       "Cool leftovers in shallow pans (reduce depth) — 135->70F within 2 h, 70->41F within 4 more h.",
@@ -315,6 +322,7 @@ export function demoScaleFromText(
     assumptions: [
       ...(notesApplied > 0 ? [`Noted ${notesApplied} kitchen correction${notesApplied > 1 ? "s" : ""} (applied by the live engine).`] : []),
       ...(funcChem ? ["Detected a brine/cure/preservation prep — salt & acid scaled LINEARLY to hold the safety ratio, not dampened."] : []),
+      YIELD_ASSUMPTION,
       "DEMO PREVIEW — a rough linear+dampening estimate on YOUR recipe (no AI). The live engine reasons about ingredient function, batching, holding & food safety properly. Verify amounts before production.",
     ],
     ingredients,
@@ -327,9 +335,11 @@ export function demoScaleFromText(
       "On a hot line, starches keep absorbing and sauces tighten — cook starches ~90%, hold back some liquid, season under and correct on the line.",
       "Add fresh herbs / crisp items at the pass; hold each batch <=90 min and refresh.",
     ],
-    pullList: ingredients
-      .filter((i) => i.role !== "fat" && i.role !== "finishing" && !(/salt/i.test(i.item) && !funcChem) && i.scaledQty !== "scale to taste")
-      .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" })),
+    pullList: applyPurchasing(
+      ingredients
+        .filter((i) => i.role !== "fat" && i.role !== "finishing" && !(/salt/i.test(i.item) && !funcChem) && i.scaledQty !== "scale to taste")
+        .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" }))
+    ),
     safetyFlags: [
       ...safetyRules.map((r) => `[${r.domain}] ${r.rule} (${r.source})`),
       "Hold hot at 135F+; cool leftovers in shallow pans (135->70F within 2 h, 70->41F within 4 more h). Verify against USDA/ServSafe.",
