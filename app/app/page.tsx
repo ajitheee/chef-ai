@@ -19,6 +19,7 @@ import { getPrices, addPrice, removePrice, costSheet, type PriceItem } from "@/l
 import { downloadBackup, restoreBackup } from "@/lib/backup";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind } from "@/lib/engine/haccp";
+import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutrition";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -592,6 +593,7 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
   const headline = checksHeadline(checks);
   const [showHaccp, setShowHaccp] = useState(false);
   const haccp = showHaccp ? buildHaccp(sheet) : null;
+  const nutrition = estimateNutrition(sheet);
 
   async function copyAll() {
     try {
@@ -651,6 +653,8 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
       </div>
 
       {haccp && <HaccpPanel plan={haccp} />}
+
+      <NutritionPanel est={nutrition} />
 
       {costing && costing.priced > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#51613A] bg-[#51613A]/8 p-4">
@@ -819,6 +823,72 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
       </ol>
 
       <p className="mt-3 text-xs text-[#3A2A1E]/45">{plan.notes.join(" ")}</p>
+    </div>
+  );
+}
+
+function NutritionPanel({ est }: { est: NutritionEstimate }) {
+  const sodiumCls: Record<NutritionEstimate["sodiumLevel"], string> = {
+    low: "bg-[#51613A]/15 text-[#51613A]",
+    moderate: "bg-[#E9A93C]/30 text-[#8a5a12]",
+    high: "bg-[#C24E33]/15 text-[#C24E33]",
+    "very high": "bg-[#B0392A]/20 text-[#B0392A]",
+  };
+  const p = est.perPortion;
+  const r0 = (n: number) => String(Math.round(n));
+  const notCounted = [...est.skipped, ...est.unmatched];
+  const tiles: { k: string; v: string; sub?: string }[] = [
+    { k: "Calories", v: r0(p.kcal), sub: "kcal" },
+    { k: "Protein", v: r0(p.protein), sub: "g" },
+    { k: "Carbs", v: r0(p.carbs), sub: "g" },
+    { k: "Fat", v: r0(p.fat), sub: "g" },
+    { k: "Fiber", v: r0(p.fiber), sub: "g" },
+    { k: "Sodium", v: r0(p.sodiumMg), sub: "mg" },
+  ];
+
+  return (
+    <div className="nutrition-panel mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="font-display text-base font-semibold">🥗 Nutrition per portion (estimate)</span>
+        {est.ok && (
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${sodiumCls[est.sodiumLevel]}`}>
+            sodium: {est.sodiumLevel}
+          </span>
+        )}
+      </div>
+
+      {est.ok ? (
+        <>
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+            {tiles.map((t) => (
+              <div key={t.k} className="rounded-xl border-2 border-[#3A2A1E]/10 bg-[#FCF3E3] px-2 py-2 text-center">
+                <div className="font-display text-lg font-bold leading-tight">{t.v}</div>
+                <div className="text-[11px] font-semibold text-[#3A2A1E]/55">
+                  {t.k}
+                  {t.sub ? ` · ${t.sub}` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-[#3A2A1E]/60">
+            Calories from protein {est.split.protein}% · carbs {est.split.carbs}% · fat {est.split.fat}%.
+            {est.sodiumLevel === "high" || est.sodiumLevel === "very high"
+              ? " Sodium is ≥20% of the 2,300 mg daily value per portion — consider a lower-sodium stock or soy sauce if this is a daily-menu item."
+              : ""}
+          </p>
+        </>
+      ) : (
+        <p className="mt-2 text-sm text-[#3A2A1E]/65">
+          Not enough recognizable ingredients to estimate ({est.matched} of {est.counted} matched by weight coverage {Math.round(est.coverageByWeight * 100)}%).
+        </p>
+      )}
+
+      <p className="mt-2 text-xs text-[#3A2A1E]/45">
+        Based on {est.matched} of {est.counted} quantified ingredients ({Math.round(est.coverageByWeight * 100)}% by weight)
+        {notCounted.length > 0 ? ` — not counted: ${notCounted.slice(0, 4).join(", ")}${notCounted.length > 4 ? "…" : ""}` : ""}.
+        {est.saltToTaste ? " Salt added to taste isn't counted: 1 tsp table salt ≈ 2,300 mg sodium across the batch." : ""}{" "}
+        Standard USDA-style averages on the scaled raw recipe; cooking losses not modeled. Verify against supplier nutrition facts before publishing.
+      </p>
     </div>
   );
 }

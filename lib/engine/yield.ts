@@ -116,6 +116,62 @@ function fmtWeight(oz: number): string {
   return `${Math.round(oz * 10) / 10} oz`;
 }
 
+/* ---------- counted units -> weight (for nutrition / sanity math) ---------- */
+
+const G_PER_OZ = 28.3495;
+
+/** Typical weight of one counted unit, in oz. Returns null when we can't justify a number. */
+function perUnitOz(item: string, unit: string): number | null {
+  const it = item.toLowerCase();
+  const u = unit.toLowerCase();
+  const tenCan = /#\s*10|\b10\s*can\b/.test(it);
+  if (u === "#" || u === "#10" || (u === "" && tenCan)) return 102; // #10 can ≈ 6 lb 6 oz
+  if (/^cans?$/.test(u)) return tenCan ? 102 : 15;
+  if (/^cases?$/.test(u)) return /can/.test(it) ? 612 : null; // 6 x #10
+  if (/^bunch(es)?$/.test(u)) return /scallion|green onion/.test(it) ? 3.5 : /kale|chard|collard/.test(it) ? 8 : 2.5;
+  if (/^heads?$/.test(u)) return /garlic/.test(it) ? 1.6 : /cabbage/.test(it) ? 32 : /lettuce|romaine/.test(it) ? 16 : /cauliflower|broccoli/.test(it) ? 30 : null;
+  if (/^cloves?$/.test(u)) return 0.1;
+  if (/^sprigs?$/.test(u)) return 0.04;
+  if (/^dozen$/.test(u)) return /egg/.test(it) ? 21.2 : null;
+  if (u === "" || /^(each|ea|pieces?|whole|large|medium|small|portions?|servings?)$/.test(u)) {
+    if (/egg/.test(it)) return 1.76;
+    if (/onion/.test(it)) return 5.3;
+    if (/lime/.test(it)) return 2.4;
+    if (/lemon/.test(it)) return 3.5;
+    if (/bun|roll/.test(it)) return 1.8;
+    if (/tortilla/.test(it)) return 1.4;
+    if (/bell pepper/.test(it)) return 4.2;
+    if (/jalape/.test(it)) return 0.5;
+    if (/potato/.test(it)) return 6;
+    if (/avocado/.test(it)) return 5.3;
+    if (/chicken breast/.test(it)) return 6;
+    if (/chicken thigh/.test(it)) return 4;
+    if (/tomato/.test(it)) return 4.3;
+    if (/carrot/.test(it)) return 2.2;
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Convert any recipe quantity string to grams: weight directly, volume via
+ * density, counted units via typical unit weights. null = can't justify it.
+ */
+export function toGrams(item: string, qty: string): { grams: number; how: string } | null {
+  const q = parseQty(qty);
+  if (!q) return null;
+  if (q.fam === "weight") return { grams: q.n * W[q.unit] * G_PER_OZ, how: "weight" };
+  if (q.fam === "volume") {
+    const cups = q.n * V_CUPS[q.unit];
+    const d = lookupDensity(item);
+    const ozPerCup = d ? d.ozPerCup : 8.3;
+    return { grams: cups * ozPerCup * G_PER_OZ, how: `${d ? d.label : "liquid"} ${ozPerCup} oz/cup` };
+  }
+  const per = perUnitOz(item, q.unit);
+  if (per == null) return null;
+  return { grams: q.n * per * G_PER_OZ, how: `${q.unit || "each"} ≈ ${per} oz` };
+}
+
 /* ---------- the purchasing pass ---------- */
 
 export type PurchasingResult = { apQty: string; note: string };
