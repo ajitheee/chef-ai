@@ -20,6 +20,7 @@ import { downloadBackup, restoreBackup } from "@/lib/backup";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind } from "@/lib/engine/haccp";
 import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutrition";
+import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/ops";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -594,6 +595,8 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
   const [showHaccp, setShowHaccp] = useState(false);
   const haccp = showHaccp ? buildHaccp(sheet) : null;
   const nutrition = estimateNutrition(sheet);
+  const [showPrep, setShowPrep] = useState(false);
+  const [showSop, setShowSop] = useState(false);
 
   async function copyAll() {
     try {
@@ -628,6 +631,12 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
           <button onClick={() => setShowHaccp((s) => !s)} className={`${sheetBtn} ${showHaccp ? "bg-[#3A2A1E]/8" : ""}`}>
             {showHaccp ? "🛡 Hide HACCP" : "🛡 HACCP summary"}
           </button>
+          <button onClick={() => setShowPrep((s) => !s)} className={`${sheetBtn} ${showPrep ? "bg-[#3A2A1E]/8" : ""}`}>
+            {showPrep ? "📝 Hide prep list" : "📝 Prep list"}
+          </button>
+          <button onClick={() => setShowSop((s) => !s)} className={`${sheetBtn} ${showSop ? "bg-[#3A2A1E]/8" : ""}`}>
+            {showSop ? "📘 Hide SOP" : "📘 SOP"}
+          </button>
         </div>
       </div>
 
@@ -655,6 +664,9 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
       {haccp && <HaccpPanel plan={haccp} />}
 
       <NutritionPanel est={nutrition} />
+
+      {showPrep && <DocPanel doc={buildPrepList(sheet)} icon="📝" cls="prep-panel" />}
+      {showSop && <DocPanel doc={buildSop(sheet)} icon="📘" cls="sop-panel" />}
 
       {costing && costing.priced > 0 && (
         <div className="mt-4 rounded-2xl border-2 border-[#51613A] bg-[#51613A]/8 p-4">
@@ -823,6 +835,49 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
       </ol>
 
       <p className="mt-3 text-xs text-[#3A2A1E]/45">{plan.notes.join(" ")}</p>
+    </div>
+  );
+}
+
+function DocPanel({ doc, icon, cls }: { doc: OpsDoc; icon: string; cls: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(opsDocText(doc));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <div className={`${cls} mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-display text-base font-semibold">
+            {icon} {doc.title}
+          </div>
+          <div className="text-xs text-[#3A2A1E]/55">{doc.subtitle}</div>
+        </div>
+        <button onClick={copy} className="no-print rounded-full border-2 border-[#3A2A1E]/25 px-3 py-1.5 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5">
+          {copied ? "✓ Copied" : "📋 Copy"}
+        </button>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {doc.sections.map((s) => (
+          <section key={s.heading} className="rounded-2xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] p-3">
+            <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#3A2A1E]/50">{s.heading}</h4>
+            <ul className="mt-1.5 space-y-1 text-sm text-[#3A2A1E]/80">
+              {s.lines.map((l, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="shrink-0 text-[#3A2A1E]/35">·</span>
+                  <span>{l}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
