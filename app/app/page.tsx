@@ -21,6 +21,7 @@ import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind } from "@/lib/engine/haccp";
 import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutrition";
 import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/ops";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -66,6 +67,17 @@ export default function Home() {
     setHistory(getHistory());
     setKitchen(getKitchenNotes());
     setPrices(getPrices());
+    // Opened from the library ("Scale this recipe →")? Pre-fill from the data layer.
+    const slug = new URLSearchParams(window.location.search).get("recipe");
+    if (slug) {
+      fetch(`/api/recipes/${encodeURIComponent(slug)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.ok) loadPreset(d.recipe as Preset);
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function onAddNote() {
@@ -311,7 +323,13 @@ export default function Home() {
         <header className="mb-6 no-print">
           <div className="mb-2 flex items-center gap-4">
             <a href="/" className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">← Home</a>
+            <a href="/library" className="text-xs font-bold uppercase tracking-wide text-[#51613A] hover:text-[#3f4d2d]">Recipe library →</a>
             <a href="/app/planner" className="text-xs font-bold uppercase tracking-wide text-[#51613A] hover:text-[#3f4d2d]">Cycle-menu planner →</a>
+            {isSupabaseConfigured() && (
+              <form action="/auth/signout" method="post" className="ml-auto">
+                <button className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">Sign out</button>
+              </form>
+            )}
           </div>
           <h1 className="font-display text-3xl font-semibold">
             Digital Chef AI <span className="text-[#C24E33]">· Production Scaler</span>

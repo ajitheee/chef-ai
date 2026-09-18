@@ -1,32 +1,67 @@
 import Link from "next/link";
 import { getRecipeRepository } from "@/lib/data/recipes";
+import { importStarters } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Recipe library · Digital Chef AI",
 };
 
+const chip = "rounded-full border-2 px-3.5 py-1.5 text-xs font-bold";
+
 export default async function LibraryPage() {
-  const recipes = await getRecipeRepository().list();
+  const repo = await getRecipeRepository();
+  const recipes = await repo.list();
+  const live = repo.kind === "supabase";
 
   return (
     <div className="font-techno relative min-h-screen bg-[#FCF3E3] text-[#3A2A1E]">
       <main className="relative z-10 mx-auto max-w-3xl px-4 py-8">
         <header className="mb-6">
-          <div className="mb-2 flex items-center gap-4">
+          <div className="mb-2 flex flex-wrap items-center gap-4">
             <Link href="/" className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">
               ← Home
             </Link>
             <Link href="/app" className="text-xs font-bold uppercase tracking-wide text-[#51613A] hover:text-[#3f4d2d]">
               Production scaler →
             </Link>
+            {live && (
+              <form action="/auth/signout" method="post" className="ml-auto">
+                <button className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">Sign out</button>
+              </form>
+            )}
           </div>
-          <h1 className="font-display text-3xl font-semibold">
-            Your recipe library <span className="text-[#C24E33]">· {recipes.length}</span>
-          </h1>
-          <p className="mt-1 text-sm text-[#3A2A1E]/65">
-            Your standardized recipes. Tap one to open it, then scale it to today&apos;s covers.
-          </p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="font-display text-3xl font-semibold">
+                Your recipe library <span className="text-[#C24E33]">· {recipes.length}</span>
+              </h1>
+              <p className="mt-1 text-sm text-[#3A2A1E]/65">
+                Your standardized recipes. Tap one to open it, then scale it to today&apos;s covers.
+              </p>
+            </div>
+            <Link href="/library/new" className={`${chip} border-[#C24E33] bg-[#C24E33] text-[#FCF3E3] hover:bg-[#A33E27]`}>
+              + New recipe
+            </Link>
+          </div>
         </header>
+
+        {recipes.length === 0 && (
+          <section className="mb-6 rounded-3xl border-2 border-dashed border-[#3A2A1E]/30 bg-[#FFFBF2] p-5 text-sm text-[#3A2A1E]/70">
+            <p>Your library is empty.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href="/library/new" className={`${chip} border-[#51613A] text-[#51613A] hover:bg-[#51613A]/10`}>
+                Add a recipe
+              </Link>
+              <form action={importStarters}>
+                <button className={`${chip} border-[#E9A93C] bg-[#E9A93C]/30 text-[#8a5a12] hover:bg-[#E9A93C]/50`}>
+                  Import the 50 starter recipes
+                </button>
+              </form>
+            </div>
+          </section>
+        )}
 
         <ul className="grid gap-3 sm:grid-cols-2">
           {recipes.map((r) => (
@@ -57,7 +92,7 @@ export default async function LibraryPage() {
         </ul>
 
         <p className="mt-8 text-center text-[11px] font-semibold uppercase tracking-wide text-[#3A2A1E]/35">
-          Structured data layer · mock seed · ready for your database
+          Structured data layer · {live ? "your database" : "mock seed · connect Supabase to go live"}
         </p>
       </main>
     </div>

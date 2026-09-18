@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRecipeRepository } from "@/lib/data/recipes";
+import { DeleteRecipeButton } from "./delete-button";
+
+export const dynamic = "force-dynamic";
 
 export default async function RecipeDetailPage({
   params,
@@ -8,7 +11,8 @@ export default async function RecipeDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const recipe = await getRecipeRepository().getBySlug(slug);
+  const repo = await getRecipeRepository();
+  const recipe = await repo.getBySlug(slug);
   if (!recipe) notFound();
 
   return (
@@ -49,12 +53,15 @@ export default async function RecipeDetailPage({
 {recipe.recipeText}
           </pre>
 
-          <Link
-            href="/app"
-            className="mt-5 inline-block rounded-full bg-[#C24E33] px-5 py-3 text-sm font-bold text-[#FCF3E3] shadow-[0_6px_0_0_#A33E27] transition hover:translate-y-0.5 hover:shadow-[0_3px_0_0_#A33E27]"
-          >
-            Scale this recipe →
-          </Link>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link
+              href={`/app?recipe=${encodeURIComponent(recipe.slug)}`}
+              className="inline-block rounded-full bg-[#C24E33] px-5 py-3 text-sm font-bold text-[#FCF3E3] shadow-[0_6px_0_0_#A33E27] transition hover:translate-y-0.5 hover:shadow-[0_3px_0_0_#A33E27]"
+            >
+              Scale this recipe →
+            </Link>
+            <DeleteRecipeButton id={recipe.id} name={recipe.name} />
+          </div>
         </section>
       </main>
     </div>

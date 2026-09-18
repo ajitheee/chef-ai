@@ -13,8 +13,10 @@ survive a cleared cache, sync across devices, and back one login per chef.
 
 2. **Run the schema** — in the project, open **SQL Editor → New query**, paste
    the entire contents of [`migrations/0001_init.sql`](migrations/0001_init.sql),
-   and click **Run**. This creates the tables and locks each one to its owner
-   with row-level security.
+   click **Run**, then do the same with
+   [`migrations/0002_recipes_slug.sql`](migrations/0002_recipes_slug.sql).
+   This creates the tables and locks each one to its owner with row-level
+   security.
 
 3. **Copy your keys** — **Settings → API**. Copy:
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
@@ -31,9 +33,11 @@ what protects the data, and it's already on every table.
 
 - **Free projects pause after ~7 days of no activity.** If the dashboard looks
   "closed," it's just paused — open the project and hit **Restore/Resume**.
-- **Auth** (one login per chef) comes with Supabase — email/password or magic
-  link. Wiring the login screen + swapping the localStorage modules to read
-  Supabase when signed in is the next build step; the schema above is already
-  shaped for it (every row carries a `user_id`).
+- **Auth** (one login per chef) is wired: `/login` takes email + password or an
+  emailed sign-in link. Create the chef's user under **Authentication → Users →
+  Add user**, and add `<your-url>/auth/callback` to **Authentication → URL
+  Configuration** redirect URLs so the emailed link works. Recipes in `/library`
+  read and write his rows; the first visit offers a one-click import of the 50
+  starter recipes.
 - Keep `.env.local` out of git (it already is via `.gitignore`). Never commit
   the **service_role** key — you don't need it for this app.
