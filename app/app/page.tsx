@@ -17,6 +17,7 @@ import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export
 import { getKitchenNotes, addKitchenNote, removeKitchenNote, type KitchenNote } from "@/lib/kitchen";
 import { getPrices, addPrice, removePrice, costSheet, type PriceItem } from "@/lib/prices";
 import { downloadBackup, restoreBackup } from "@/lib/backup";
+import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
@@ -586,6 +587,8 @@ function FirstRunHint() {
 function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] }) {
   const [copied, setCopied] = useState(false);
   const costing = prices.length > 0 ? costSheet(sheet, prices) : null;
+  const checks = validateSheet(sheet);
+  const headline = checksHeadline(checks);
 
   async function copyAll() {
     try {
@@ -618,6 +621,27 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
           )}
           <button onClick={() => window.print()} className={sheetBtn}>🖨 Print / PDF</button>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-display text-base font-semibold">Accuracy checks</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${headline.status === "warn" ? "bg-[#C24E33]/15 text-[#C24E33]" : "bg-[#51613A]/15 text-[#51613A]"}`}>
+            {headline.status === "warn" ? `⚠ ${headline.warned} to review` : "✓ all passed"}
+          </span>
+        </div>
+        <ul className="mt-2 space-y-1.5 text-sm">
+          {checks.map((c, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className={`mt-0.5 shrink-0 font-bold ${c.status === "pass" ? "text-[#51613A]" : c.status === "warn" ? "text-[#C24E33]" : "text-[#3A2A1E]/35"}`}>
+                {c.status === "pass" ? "✓" : c.status === "warn" ? "⚠" : "·"}
+              </span>
+              <span>
+                <span className="font-semibold">{c.label}</span> <span className="text-[#3A2A1E]/60">— {c.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {costing && costing.priced > 0 && (
