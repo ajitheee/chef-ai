@@ -69,6 +69,27 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
 }
 
 /**
+ * If the error means the LIVE engine can't be used right now (bad key, rate
+ * limit, outage, network), return a plain-English reason; otherwise null.
+ * Routes use it to fall back to the built-in scaler instead of failing — a
+ * chef must never see raw JSON.
+ */
+export function engineFailure(e: unknown): string | null {
+  const status = e instanceof Anthropic.APIError ? e.status : undefined;
+  const msg = e instanceof Error ? e.message : String(e);
+  if (status === 401 || /authentication_error|api key is invalid|invalid x-api-key|Missing ANTHROPIC_API_KEY/i.test(msg)) {
+    return "The AI engine's API key is invalid or missing on the server.";
+  }
+  if (status === 403 || /permission_error/i.test(msg)) return "The AI engine's API key doesn't have access to this model.";
+  if (status === 429 || /rate_limit/i.test(msg)) return "The AI engine is rate-limited right now — try again in a minute.";
+  if ((status !== undefined && status >= 500) || /overloaded|api_error|internal server/i.test(msg)) {
+    return "The AI engine is temporarily unavailable.";
+  }
+  if (/fetch failed|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|network/i.test(msg)) return "The AI engine couldn't be reached.";
+  return null;
+}
+
+/**
  * Variations / options: propose 2-3 distinct versions of a dish or recipe.
  */
 export async function suggestVariations(input: VariationsInput): Promise<VariationsResult> {

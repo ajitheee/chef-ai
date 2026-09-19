@@ -32,6 +32,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [sheet, setSheet] = useState<ProductionSheet | null>(null);
   const [demo, setDemo] = useState(false);
+  const [engineNote, setEngineNote] = useState("");
 
   const [refineText, setRefineText] = useState("");
   const [refining, setRefining] = useState(false);
@@ -250,6 +251,7 @@ export default function Home() {
       const s = data.sheet as ProductionSheet;
       setSheet(s);
       setDemo(!!data.demo);
+      setEngineNote(typeof data.note === "string" ? data.note : "");
       setRefineNote("");
       store().history.add(s.dish, s.targetYield.covers, s).then(setHistory).catch(() => {});
     } catch (e) {
@@ -575,9 +577,17 @@ export default function Home() {
 
         {sheet && demo && (
           <p className="no-print mt-6 rounded-2xl border-2 border-[#E9A93C] bg-[#E9A93C]/15 px-4 py-3 text-sm text-[#3A2A1E]">
-            🧪 <span className="font-bold">Demo preview</span> — a rough linear+dampening estimate for{" "}
-            <span className="font-bold">{sheet.dish}</span> (no AI yet). Add the API key to unlock the full
-            chef-logic engine on <span className="font-bold">any</span> recipe.
+            {engineNote ? (
+              <>
+                ⚠ <span className="font-bold">Built-in estimate</span> — {engineNote}
+              </>
+            ) : (
+              <>
+                🧪 <span className="font-bold">Demo preview</span> — a rough linear+dampening estimate for{" "}
+                <span className="font-bold">{sheet.dish}</span> (no AI yet). Add the API key to unlock the full
+                chef-logic engine on <span className="font-bold">any</span> recipe.
+              </>
+            )}
           </p>
         )}
 

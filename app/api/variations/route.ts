@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { suggestVariations } from "@/lib/engine/claude";
+import { suggestVariations, engineFailure } from "@/lib/engine/claude";
 import { VariationsInputSchema } from "@/lib/engine/schema";
 import { isDemoMode, demoVariations } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
@@ -29,8 +29,19 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const result = await suggestVariations(input);
-    return NextResponse.json({ ok: true, result, demo: false });
+    try {
+      const result = await suggestVariations(input);
+      return NextResponse.json({ ok: true, result, demo: false });
+    } catch (e) {
+      const reason = engineFailure(e);
+      if (!reason) throw e;
+      return NextResponse.json({
+        ok: true,
+        result: { dish: input.dish || "Your recipe", variations: [] },
+        demo: true,
+        note: `${reason} Variations need the live engine — try again once it's back.`,
+      });
+    }
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "Something went wrong generating variations.";

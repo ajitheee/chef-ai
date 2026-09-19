@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { refineSheet } from "@/lib/engine/claude";
+import { refineSheet, engineFailure } from "@/lib/engine/claude";
 import { ProductionSheetSchema } from "@/lib/engine/schema";
 import { isDemoMode } from "@/lib/engine/demo";
 
@@ -28,8 +28,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const updated = await refineSheet(sheet, instruction);
-    return NextResponse.json({ ok: true, sheet: updated, demo: false });
+    try {
+      const updated = await refineSheet(sheet, instruction);
+      return NextResponse.json({ ok: true, sheet: updated, demo: false });
+    } catch (e) {
+      const reason = engineFailure(e);
+      if (!reason) throw e;
+      return NextResponse.json({ ok: true, sheet, demo: true, note: `${reason} The sheet is unchanged — try again once it's back.` });
+    }
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "Something went wrong refining the sheet.";
