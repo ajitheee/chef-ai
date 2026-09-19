@@ -1,21 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SAMPLE, PRESETS, type Preset } from "@/lib/engine/sample";
 import type { ProductionSheet, Variation } from "@/lib/engine/schema";
-import {
-  getRecipes,
-  saveRecipe,
-  deleteRecipe,
-  getHistory,
-  addToHistory,
-  deleteFromHistory,
-  type SavedRecipe,
-  type SheetHistoryEntry,
-} from "@/lib/storage";
 import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
-import { getKitchenNotes, addKitchenNote, removeKitchenNote, type KitchenNote } from "@/lib/kitchen";
-import { getPrices, addPrice, removePrice, costSheet, type PriceItem } from "@/lib/prices";
+import { costSheet, type PriceItem } from "@/lib/prices";
+import { getStore, type KitchenStore, type SavedRecipe, type SheetHistoryEntry, type KitchenNote } from "@/lib/store";
 import { downloadBackup, restoreBackup } from "@/lib/backup";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind } from "@/lib/engine/haccp";
@@ -62,11 +52,19 @@ export default function Home() {
 
   const [dataNote, setDataNote] = useState("");
 
+  // The working-data store (browser storage, or the chef's Supabase rows).
+  // Created lazily on the client — never during server prerender.
+  const storeRef = useRef<KitchenStore | null>(null);
+  const store = () => (storeRef.current ??= getStore());
+  const [storeKind, setStoreKind] = useState<"local" | "supabase">("local");
+
   useEffect(() => {
-    setSaved(getRecipes());
-    setHistory(getHistory());
-    setKitchen(getKitchenNotes());
-    setPrices(getPrices());
+    const s = store();
+    setStoreKind(s.kind);
+    s.recipes.list().then(setSaved).catch(() => {});
+    s.history.list().then(setHistory).catch(() => {});
+    s.notes.list().then(setKitchen).catch(() => {});
+    s.prices.list().then(setPrices).catch(() => {});
     // Opened from the library ("Scale this recipe →")? Pre-fill from the data layer.
     const slug = new URLSearchParams(window.location.search).get("recipe");
     if (slug) {
@@ -80,32 +78,41 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function onAddNote() {
+  async function onAddNote() {
     if (!newNote.trim()) return;
-    setKitchen(addKitchenNote(newNote));
-    setNewNote("");
+    try {
+      setKitchen(await store().notes.add(newNote));
+      setNewNote("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save the note.");
+    }
   }
 
-  function onAddPrice() {
+  async function onAddPrice() {
     const v = Number(pPrice);
     if (!pName.trim() || !v) return;
-    setPrices(addPrice(pName, pUnit || "unit", v));
-    setPName("");
-    setPUnit("");
-    setPPrice("");
+    try {
+      setPrices(await store().prices.add(pName, pUnit || "unit", v));
+      setPName("");
+      setPUnit("");
+      setPPrice("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save the price.");
+    }
   }
 
   function onRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
-        const res = restoreBackup(String(reader.result), "merge");
-        setSaved(getRecipes());
-        setHistory(getHistory());
-        setKitchen(getKitchenNotes());
-        setPrices(getPrices());
+        const s = store();
+        const res = await restoreBackup(s, String(reader.result));
+        setSaved(await s.recipes.list());
+        setHistory(await s.history.list());
+        setKitchen(await s.notes.list());
+        setPrices(await s.prices.list());
         setDataNote(
           `✓ Restored — ${res.recipes} recipes, ${res.prices} prices, ${res.kitchen} kitchen notes, ${res.history} sheets.`
         );
@@ -166,23 +173,32 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
-  function onSave() {
+  async function onSave() {
     if (!recipeName.trim() || !recipeText.trim() || !basePortions || !portionSize) {
       setError("To save: add a recipe name, the recipe, base portions, and portion size.");
       return;
     }
     setError("");
-    setSaved(
-      saveRecipe({
-        name: recipeName.trim(),
-        recipeText,
-        basePortions: Number(basePortions),
-        portionSize,
-        equipment,
-        holdingTime,
-        lastCovers: Number(targetCovers) || undefined,
-      })
-    );
+    try {
+      setSaved(
+        await store().recipes.save({
+          name: recipeName.trim(),
+          recipeText,
+          basePortions: Number(basePortions),
+          portionSize,
+          equipment,
+          holdingTime,
+          lastCovers: Number(targetCovers) || undefined,
+        })
+      );
+      setDataNote(
+        storeKind === "supabase"
+          ? `✓ Saved "${recipeName.trim()}" to your library.`
+          : `✓ Saved "${recipeName.trim()}" on this device.`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save the recipe.");
+    }
   }
 
   function loadSaved(r: SavedRecipe) {
@@ -199,7 +215,10 @@ export default function Home() {
   }
 
   function onDelete(id: string) {
-    setSaved(deleteRecipe(id));
+    store()
+      .recipes.remove(id)
+      .then(setSaved)
+      .catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete the recipe."));
   }
 
   async function onScale() {
@@ -231,7 +250,7 @@ export default function Home() {
       setSheet(s);
       setDemo(!!data.demo);
       setRefineNote("");
-      setHistory(addToHistory(s.dish, s.targetYield.covers, s));
+      store().history.add(s.dish, s.targetYield.covers, s).then(setHistory).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -258,7 +277,7 @@ export default function Home() {
         const s = data.sheet as ProductionSheet;
         setSheet(s);
         setRefineText("");
-        setHistory(addToHistory(s.dish, s.targetYield.covers, s));
+        store().history.add(s.dish, s.targetYield.covers, s).then(setHistory).catch(() => {});
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
@@ -348,7 +367,7 @@ export default function Home() {
             💲 Prices ({prices.length})
           </button>
           <span className="mx-1 hidden h-5 w-px bg-[#3A2A1E]/15 sm:block" aria-hidden />
-          <button onClick={() => downloadBackup()} title="Save all your recipes, prices and notes to a file" className={`${chipBtn} border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
+          <button onClick={() => downloadBackup(store()).catch(() => setDataNote("Couldn't build the backup."))} title="Save all your recipes, prices and notes to a file" className={`${chipBtn} border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
             ⬇ Backup
           </button>
           <label title="Restore from a backup file (merges — nothing is deleted)" className={`${chipBtn} cursor-pointer border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
@@ -378,7 +397,7 @@ export default function Home() {
                 {kitchen.map((n) => (
                   <li key={n.id} className="flex items-start justify-between gap-2 rounded-xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] px-3 py-2 text-sm">
                     <span>{n.text}</span>
-                    <button onClick={() => setKitchen(removeKitchenNote(n.id))} className="shrink-0 text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
+                    <button onClick={() => store().notes.remove(n.id).then(setKitchen).catch(() => {})} className="shrink-0 text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
                   </li>
                 ))}
               </ul>
@@ -401,7 +420,7 @@ export default function Home() {
                 {prices.map((p) => (
                   <li key={p.id} className="flex items-center justify-between rounded-xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] px-3 py-1.5 text-sm">
                     <span><span className="font-semibold">{p.name}</span> — ${p.price.toFixed(2)} / {p.unit}</span>
-                    <button onClick={() => setPrices(removePrice(p.id))} className="text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
+                    <button onClick={() => store().prices.remove(p.id).then(setPrices).catch(() => {})} className="text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
                   </li>
                 ))}
               </ul>
@@ -418,7 +437,7 @@ export default function Home() {
                 {varLoading ? "Thinking…" : "💡 Variations"}
               </button>
               <button onClick={onSave} className={`${chipBtn} border-[#51613A] bg-[#51613A]/12 text-[#51613A] hover:bg-[#51613A]/20`}>
-                Save recipe
+                {storeKind === "supabase" ? "Save to library" : "Save recipe"}
               </button>
               <button onClick={loadSample} className={`${chipBtn} border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
                 Load sample
@@ -543,7 +562,7 @@ export default function Home() {
                   <button onClick={() => loadHistoryEntry(h)} className="hover:text-[#C24E33]">
                     <span className="font-semibold">{h.dish}</span> · {h.covers} covers · <span className="text-[#3A2A1E]/45">{h.savedAt}</span>
                   </button>
-                  <button onClick={() => setHistory(deleteFromHistory(h.id))} className="flex h-4 w-4 items-center justify-center rounded-full text-[#3A2A1E]/40 hover:bg-[#3A2A1E]/10 hover:text-[#3A2A1E]" aria-label={`Delete ${h.dish}`}>×</button>
+                  <button onClick={() => store().history.remove(h.id).then(setHistory).catch(() => {})} className="flex h-4 w-4 items-center justify-center rounded-full text-[#3A2A1E]/40 hover:bg-[#3A2A1E]/10 hover:text-[#3A2A1E]" aria-label={`Delete ${h.dish}`}>×</button>
                 </span>
               ))}
             </div>

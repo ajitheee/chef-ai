@@ -1,17 +1,14 @@
 "use client";
 
-import { getRecipes, getHistory, type SavedRecipe, type SheetHistoryEntry } from "./storage";
-import { getKitchenNotes, type KitchenNote } from "./kitchen";
-import { getPrices, type PriceItem } from "./prices";
+import type { ProductionSheet } from "./engine/schema";
+import type { KitchenStore, SavedRecipe, SheetHistoryEntry, KitchenNote, PriceItem } from "./store";
 
 /**
- * Local data backup/restore. localStorage lives in ONE browser — a cleared
- * cache or a new laptop loses the whole recipe library. This exports everything
- * (recipes, sheet history, kitchen memory, price book) to a single JSON file
- * the chef can keep, email, or move to another machine, and imports it back.
- *
- * No account needed. When Supabase is connected this stays the export/offline
- * path; until then it's the safety net.
+ * Backup / restore of the scaler's working data, through the active store —
+ * so it works the same whether the data lives in this browser or in the
+ * chef's Supabase rows. Export is one JSON file the chef can keep or move;
+ * restore MERGES (imported wins on a matching recipe/price name; nothing is
+ * deleted).
  */
 
 export type ChefBackup = {
@@ -24,39 +21,25 @@ export type ChefBackup = {
   prices: PriceItem[];
 };
 
-const KEYS = {
-  recipes: "chefai.recipes.v1",
-  history: "chefai.sheets.v1",
-  kitchen: "chefai.kitchen.v1",
-  prices: "chefai.prices.v1",
-} as const;
-
-const HISTORY_MAX = 20; // must match storage.ts
-
-/** Snapshot everything currently in localStorage. */
-export function buildBackup(): ChefBackup {
-  return {
-    app: "digital-chef-ai",
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    recipes: getRecipes(),
-    history: getHistory(),
-    kitchen: getKitchenNotes(),
-    prices: getPrices(),
-  };
+export async function buildBackup(store: KitchenStore): Promise<ChefBackup> {
+  const [recipes, history, kitchen, prices] = await Promise.all([
+    store.recipes.list(),
+    store.history.list(),
+    store.notes.list(),
+    store.prices.list(),
+  ]);
+  return { app: "digital-chef-ai", version: 1, exportedAt: new Date().toISOString(), recipes, history, kitchen, prices };
 }
 
 export function backupFileName(): string {
   const d = new Date();
-  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate()
-  ).padStart(2, "0")}`;
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return `chef-ai-backup-${stamp}.json`;
 }
 
 /** Download the current backup as a .json file. */
-export function downloadBackup(): void {
-  const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], { type: "application/json" });
+export async function downloadBackup(store: KitchenStore): Promise<void> {
+  const blob = new Blob([JSON.stringify(await buildBackup(store), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -67,44 +50,10 @@ export function downloadBackup(): void {
   URL.revokeObjectURL(url);
 }
 
-export type RestoreMode = "merge" | "replace";
 export type RestoreResult = { recipes: number; history: number; kitchen: number; prices: number };
 
-function writeKey(key: string, value: unknown): void {
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
-
-/** Dedupe by id, keeping the first occurrence (imported items come first). */
-function byId<T extends { id: string }>(list: T[]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  for (const item of list) {
-    if (!item || typeof item.id !== "string" || seen.has(item.id)) continue;
-    seen.add(item.id);
-    out.push(item);
-  }
-  return out;
-}
-
-/** Dedupe by id, then collapse duplicate names (case-insensitive), first wins. */
-function collapseByName<T extends { id: string; name: string }>(list: T[]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  for (const item of byId(list)) {
-    const key = (item.name || "").trim().toLowerCase();
-    if (key && seen.has(key)) continue;
-    if (key) seen.add(key);
-    out.push(item);
-  }
-  return out;
-}
-
-/**
- * Restore a backup file. `merge` (default) layers imported data on top of what's
- * already there — imported wins on a matching id/name, nothing is deleted.
- * `replace` overwrites everything with the file. Throws on a bad file.
- */
-export function restoreBackup(raw: string, mode: RestoreMode = "merge"): RestoreResult {
+/** Merge a backup file into the active store. Throws on a bad file. */
+export async function restoreBackup(store: KitchenStore, raw: string): Promise<RestoreResult> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -121,35 +70,46 @@ export function restoreBackup(raw: string, mode: RestoreMode = "merge"): Restore
   const inKitchen = (Array.isArray(b.kitchen) ? b.kitchen : []) as KitchenNote[];
   const inPrices = (Array.isArray(b.prices) ? b.prices : []) as PriceItem[];
 
-  let recipes: SavedRecipe[];
-  let history: SheetHistoryEntry[];
-  let kitchen: KitchenNote[];
-  let prices: PriceItem[];
-
-  if (mode === "replace") {
-    recipes = collapseByName(inRecipes);
-    history = byId(inHistory);
-    kitchen = byId(inKitchen);
-    prices = collapseByName(inPrices);
-  } else {
-    // Imported first so it wins on a matching id/name.
-    recipes = collapseByName([...inRecipes, ...getRecipes()]);
-    history = byId([...inHistory, ...getHistory()]);
-    kitchen = byId([...inKitchen, ...getKitchenNotes()]);
-    prices = collapseByName([...inPrices, ...getPrices()]);
+  // Recipes and prices: same name replaces (imported wins), via the store's own rule.
+  for (const r of inRecipes) {
+    if (!r?.name || !r.recipeText) continue;
+    await store.recipes.save({
+      name: r.name,
+      recipeText: r.recipeText,
+      basePortions: Number(r.basePortions) || 1,
+      portionSize: r.portionSize || "1 portion",
+      equipment: r.equipment,
+      holdingTime: r.holdingTime,
+      lastCovers: r.lastCovers,
+    });
+  }
+  for (const p of inPrices) {
+    if (p?.name && Number.isFinite(Number(p.price))) await store.prices.add(p.name, p.unit || "unit", Number(p.price));
   }
 
-  history = history.slice(0, HISTORY_MAX);
+  // Notes: skip exact duplicates.
+  const haveNotes = new Set((await store.notes.list()).map((n) => n.text.trim().toLowerCase()));
+  for (const n of inKitchen) {
+    const key = (n?.text ?? "").trim().toLowerCase();
+    if (!key || haveNotes.has(key)) continue;
+    await store.notes.add(n.text);
+    haveNotes.add(key);
+  }
 
-  writeKey(KEYS.recipes, recipes);
-  writeKey(KEYS.history, history);
-  writeKey(KEYS.kitchen, kitchen);
-  writeKey(KEYS.prices, prices);
+  // Sheets: skip entries already present (same dish, covers and timestamp).
+  const keyOf = (h: SheetHistoryEntry) => `${h.dish}|${h.covers}|${h.savedAt}`;
+  const haveHistory = new Set((await store.history.list()).map(keyOf));
+  for (const h of inHistory) {
+    if (!h?.sheet || !h.dish || haveHistory.has(keyOf(h))) continue;
+    await store.history.add(h.dish, Number(h.covers) || 0, h.sheet as ProductionSheet);
+    haveHistory.add(keyOf(h));
+  }
 
-  return {
-    recipes: recipes.length,
-    history: history.length,
-    kitchen: kitchen.length,
-    prices: prices.length,
-  };
+  const [recipes, history, kitchen, prices] = await Promise.all([
+    store.recipes.list(),
+    store.history.list(),
+    store.notes.list(),
+    store.prices.list(),
+  ]);
+  return { recipes: recipes.length, history: history.length, kitchen: kitchen.length, prices: prices.length };
 }

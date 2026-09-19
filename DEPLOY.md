@@ -49,5 +49,7 @@ key anywhere in this app — it isn't needed and would bypass row-level security
 ## After it's live
 - Local dev keeps working as before: `npm run dev` with your `.env.local`.
 - Every push to `main` redeploys automatically.
-- Still on the browser for kitchen memory, prices and sheet history — the
-  next slice moves those to the database too.
+- With Supabase connected, everything the chef touches — library, saved
+  recipes, kitchen memory, price book, sheet history — lives in his rows and
+  follows his login to any device. Without it, the same screens save per
+  device in the browser (Backup/Restore moves them).
