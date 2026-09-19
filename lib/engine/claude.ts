@@ -19,7 +19,7 @@ import {
 
 // Default model — override with ANTHROPIC_MODEL in .env.local if your key
 // has access to a different Claude version.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 
 /**
  * Calls Claude with the v4.0 dining-hall engine and returns a validated

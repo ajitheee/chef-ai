@@ -11,7 +11,7 @@ import { GATE_COOKIE, gateToken } from "@/lib/gate";
  * The landing page, sign-in pages and static assets are always public.
  */
 
-const PUBLIC = [/^\/$/, /^\/login/, /^\/gate/, /^\/auth\//, /^\/api\/gate$/, /^\/_next\//, /^\/favicon/, /\.(png|jpe?g|svg|ico|webp|css|js|txt|xml|woff2?)$/i];
+const PUBLIC = [/^\/$/, /^\/login/, /^\/gate/, /^\/auth\//, /^\/api\/gate$/, /^\/api\/health$/, /^\/_next\//, /^\/favicon/, /\.(png|jpe?g|svg|ico|webp|css|js|txt|xml|woff2?)$/i];
 
 function safeNext(path: string): string {
   return path.startsWith("/") && !path.startsWith("//") ? path : "/";
