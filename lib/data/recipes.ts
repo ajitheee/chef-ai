@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Recipe } from "./types";
 import { SEED_RECIPES } from "./seed";
 import { slugify } from "./slug";
+import { PRESETS } from "@/lib/engine/sample";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -173,3 +174,16 @@ export async function getRecipeRepository(): Promise<RecipeRepository> {
 
 /** The 50 test recipes — importable into a fresh database with one click. */
 export const STARTER_RECIPES: Recipe[] = SEED_RECIPES;
+
+/** The chef's own four Centerpointe recipes — what his library should start with. */
+export const CHEF_RECIPES: Recipe[] = PRESETS.map((p) => ({
+  id: `chef-${slugify(p.name)}`,
+  slug: slugify(p.name),
+  name: p.name,
+  recipeText: p.recipeText,
+  basePortions: p.basePortions,
+  portionSize: p.portionSize,
+  equipment: p.equipment,
+  holdingTime: p.holdingTime,
+  tags: ["centerpointe"],
+}));

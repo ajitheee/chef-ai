@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getRecipeRepository, STARTER_RECIPES } from "@/lib/data/recipes";
+import { getRecipeRepository, STARTER_RECIPES, CHEF_RECIPES } from "@/lib/data/recipes";
 
 function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -48,5 +48,11 @@ export async function deleteRecipe(formData: FormData) {
 export async function importStarters() {
   const repo = await getRecipeRepository();
   await repo.importMany(STARTER_RECIPES);
+  revalidatePath("/library");
+}
+
+export async function importChefRecipes() {
+  const repo = await getRecipeRepository();
+  await repo.importMany(CHEF_RECIPES);
   revalidatePath("/library");
 }

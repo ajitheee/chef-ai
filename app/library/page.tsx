@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getRecipeRepository } from "@/lib/data/recipes";
-import { importStarters } from "./actions";
+import { importStarters, importChefRecipes } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -47,20 +47,40 @@ export default async function LibraryPage() {
           </div>
         </header>
 
-        {recipes.length === 0 && (
+        {recipes.length === 0 ? (
           <section className="mb-6 rounded-3xl border-2 border-dashed border-[#3A2A1E]/30 bg-[#FFFBF2] p-5 text-sm text-[#3A2A1E]/70">
-            <p>Your library is empty.</p>
+            <p>Your library is empty. Start with your own recipes, or load the test library to explore.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Link href="/library/new" className={`${chip} border-[#51613A] text-[#51613A] hover:bg-[#51613A]/10`}>
-                Add a recipe
-              </Link>
-              <form action={importStarters}>
-                <button className={`${chip} border-[#E9A93C] bg-[#E9A93C]/30 text-[#8a5a12] hover:bg-[#E9A93C]/50`}>
-                  Import the 50 starter recipes
+              <form action={importChefRecipes}>
+                <button className={`${chip} border-[#C24E33] bg-[#C24E33]/10 text-[#C24E33] hover:bg-[#C24E33]/20`}>
+                  Import my 4 Centerpointe recipes
                 </button>
               </form>
+              <form action={importStarters}>
+                <button className={`${chip} border-[#E9A93C] bg-[#E9A93C]/30 text-[#8a5a12] hover:bg-[#E9A93C]/50`}>
+                  Import the 50-recipe test library
+                </button>
+              </form>
+              <Link href="/library/new" className={`${chip} border-[#51613A] text-[#51613A] hover:bg-[#51613A]/10`}>
+                Add a recipe by hand
+              </Link>
             </div>
           </section>
+        ) : (
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[#3A2A1E]/50">
+            <span className="font-semibold">Import:</span>
+            <form action={importChefRecipes}>
+              <button className="rounded-full border-2 border-[#C24E33]/40 px-3 py-1 text-xs font-bold text-[#C24E33] hover:bg-[#C24E33]/10">
+                my 4 Centerpointe recipes
+              </button>
+            </form>
+            <form action={importStarters}>
+              <button className="rounded-full border-2 border-[#E9A93C]/60 px-3 py-1 text-xs font-bold text-[#8a5a12] hover:bg-[#E9A93C]/20">
+                the 50-recipe test library
+              </button>
+            </form>
+            <span>(already-imported recipes are skipped)</span>
+          </div>
         )}
 
         <ul className="grid gap-3 sm:grid-cols-2">
