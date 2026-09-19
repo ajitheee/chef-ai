@@ -44,18 +44,14 @@ const PROTEIN: Record<ProteinClass, RegExp> = {
 
 const TCS = /\b(milk|cream|cheese|yogurt|butter|paneer|tofu|rice|beans?|lentils?|pasta|noodles?|potato|diced|chopped|sliced|cut|melon|sprouts?|greens|lettuce)\b/;
 
+/**
+ * Only what the RECIPE says — dish, ingredients, method. Never the sheet's own
+ * safety notes or assumptions: the brine rule's wording mentions "cure" and
+ * "nitrite", and the garlic-oil rule mentions "acidification", so scanning
+ * those would make every flagged sheet re-trigger unrelated hazards.
+ */
 function sheetText(sheet: ProductionSheet): string {
-  return [
-    sheet.dish,
-    sheet.mode,
-    ...sheet.ingredients.map((i) => i.item),
-    ...sheet.method,
-    ...sheet.holding,
-    ...sheet.safetyFlags,
-    ...sheet.assumptions,
-  ]
-    .join(" \n ")
-    .toLowerCase();
+  return [sheet.dish, sheet.mode, ...sheet.ingredients.map((i) => i.item), ...sheet.method].join(" \n ").toLowerCase();
 }
 
 /** Governing cook limit: strictest class present wins. */
@@ -136,9 +132,10 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
     });
   }
 
-  if (domains.has("brine/cure")) {
+  const CURE = /\b(cure|cured|curing|nitrite|prague|pink salt|saltpeter|corned|pastrami)\b/;
+  if (domains.has("brine/cure") && CURE.test(t)) {
     e.push({
-      step: "Cure / brine concentration",
+      step: "Cure concentration",
       kind: "CCP",
       hazard: "Nitrite toxicity or C. botulinum if the cure or salt concentration is wrong.",
       limit: "Cure and salt scaled LINEARLY with the water and meat to the exact validated ratio; nitrite per a validated cure calculator (USDA FSIS limits).",
@@ -146,6 +143,18 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
       corrective: "Ratio off → remake the brine; discard product cured with the wrong dose.",
       verify: "Validated cure calculation on file; scale calibrated.",
       record: "Cure batch sheet (weights, initials).",
+    });
+  } else if (domains.has("brine/cure")) {
+    // A flavor brine or marinade (buttermilk brine, wet brine) — a control point, not a nitrite cure.
+    e.push({
+      step: "Brining / marinating",
+      kind: "CP",
+      hazard: "Pathogen growth in raw protein held in brine or marinade; cross-contamination from used brine.",
+      limit: "Brine and hold at ≤41°F (5°C) for the recipe's time — never at room temperature. Salt scaled to the recipe ratio (not dampened).",
+      monitor: "Fridge temperature; time-in written on the brine container.",
+      corrective: "Discard protein held above 41°F for more than 4 h; discard used brine — never reuse or serve it.",
+      verify: "Chef checks brine containers are labeled and refrigerated.",
+      record: "Brine / marinade label (item, time in, initials).",
     });
   }
 

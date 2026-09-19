@@ -15,7 +15,9 @@ export const SAFETY_RULES: SafetyRule[] = [
   },
   {
     domain: "pickling/canning",
-    kw: ["pickle", "pickled", "pickling", "canning", "water bath", "shelf stable", "shelf-stable", "preserve", "preserved", "preserves", "jam", "acidify", "acidified"],
+    // PROCESS words only — "pickle chips" or "raspberry jam" as an ingredient is not pickling/canning.
+    // ("pickling spice" is a spice blend, so bare "pickling" isn't on the list either.)
+    kw: ["quick pickle", "quick-pickle", "pickle the", "pickling brine", "pickling liquid", "pickling solution", "canning", "water bath", "water-bath", "shelf stable", "shelf-stable", "acidify", "acidified", "acidification", "process the jars", "seal the jars", "hot pack", "raw pack"],
     rule: "Preservation acidity is safety-critical — for water-bath canning the product must reach pH < 4.6 (add acid, or pressure-can). Do NOT reduce vinegar/acid for flavor. Use a tested NCHFP recipe.",
     source: "NCHFP",
   },
@@ -33,7 +35,8 @@ export const SAFETY_RULES: SafetyRule[] = [
   },
   {
     domain: "fermentation",
-    kw: ["ferment", "fermented", "fermenting", "fermentation", "kraut", "sauerkraut", "kimchi", "lacto"],
+    // PROCESS words only — kimchi or sauerkraut as an ingredient is not fermenting.
+    kw: ["ferment", "fermenting", "fermentation", "lacto", "lacto-ferment", "lacto-fermented"],
     rule: "Fermentation salt % is functional (it controls the culture and safety) — hold the exact salt-by-weight ratio; do not dampen. Follow a validated fermentation ratio.",
     source: "NCHFP",
   },
