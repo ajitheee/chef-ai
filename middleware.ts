@@ -19,10 +19,31 @@ function safeNext(path: string): string {
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
-  if (PUBLIC.some((re) => re.test(path))) return NextResponse.next();
-
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (url && anon && path !== "/auth/callback") {
+    // Supabase sends every email link (magic link, confirmation, password
+    // reset) to the project's Site URL with a one-time ?code=. Finish the
+    // sign-in wherever that lands instead of leaving the visitor logged out.
+    const code = req.nextUrl.searchParams.get("code");
+    if (code) {
+      const cb = req.nextUrl.clone();
+      cb.pathname = "/auth/callback";
+      cb.search = `?code=${encodeURIComponent(code)}&next=${encodeURIComponent(safeNext(path === "/" ? "/library" : path))}`;
+      return NextResponse.redirect(cb);
+    }
+    // Expired / already-used links arrive as ?error_description=... — show it on the login page.
+    const desc = req.nextUrl.searchParams.get("error_description");
+    if (desc && path !== "/login") {
+      const login = req.nextUrl.clone();
+      login.pathname = "/login";
+      login.search = `?error=${encodeURIComponent(desc)}`;
+      return NextResponse.redirect(login);
+    }
+  }
+
+  if (PUBLIC.some((re) => re.test(path))) return NextResponse.next();
 
   if (url && anon) {
     let res = NextResponse.next({ request: req });
