@@ -81,7 +81,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
   const classes = (Object.keys(PROTEIN) as ProteinClass[]).filter((c) => PROTEIN[c].test(t));
   const rawAnimal = classes.length > 0;
   const tcs = rawAnimal || TCS.test(t);
-  const allergens = detectAllergens(t);
+  const allergens = detectAllergens(sheet.ingredients.map((i) => i.item).join(" ").toLowerCase());
   const domains = new Set(detectSafety(t).map((r) => r.domain));
   if (sheet.mode === "safety_chemistry" && domains.size === 0) domains.add("brine/cure");
   const rice = /\brice\b/.test(t);

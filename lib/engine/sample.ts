@@ -6,6 +6,7 @@ import type { ScaleInput } from "./schema";
  * recipe scaled to 800 covers, so demo mode is coherent on his own food.
  */
 export const SAMPLE: ScaleInput = {
+  dish: "Mexican Rice",
   recipeText: `Mexican Rice
 - 12.5 cups jasmine rice (dry)
 - 1.5 cups yellow onion, diced

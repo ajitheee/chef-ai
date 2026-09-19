@@ -1,6 +1,7 @@
 import type { ProductionSheet, VariationsResult } from "./schema";
 import { detectSafety, isFunctionalChemistry } from "./safety";
 import { applyPurchasing } from "./yield";
+import { detectAllergens } from "./validate";
 
 const YIELD_ASSUMPTION =
   "Pull list converts recipe (EP) amounts to as-purchased (AP) order quantities using standard yield + density tables — verify against your kitchen's actual yields.";
@@ -205,7 +206,7 @@ export function demoScale(covers: number, portionSize = "3 oz cooked", notesAppl
 
 type RoleRule = { kw: string[]; role: string; damp: number; kind?: "taste" | "asneeded" | "finishing" };
 const ROLE_RULES: RoleRule[] = [
-  { kw: ["kosher salt", "sea salt", "salt"], role: "high_impact", damp: 1, kind: "taste" },
+  { kw: ["kosher salt", "sea salt", "salt"], role: "high_impact", damp: 0.75, kind: "taste" },
   { kw: ["as needed", "for frying", "to coat", "pan spray", "cooking spray"], role: "fat", damp: 1, kind: "asneeded" },
   { kw: ["cilantro", "parsley", "chives", "fresh basil", "mint", "microgreen", "zest", "garnish", "scallion green"], role: "finishing", damp: 0.7, kind: "finishing" },
   { kw: ["garlic", "ginger"], role: "flavor_base", damp: 0.8 },
@@ -213,19 +214,9 @@ const ROLE_RULES: RoleRule[] = [
   { kw: ["jalapeno", "jalapeño", "serrano", "chile", "chili", "cayenne", "pepper flake", "hot sauce", "sriracha", "sambal"], role: "high_impact", damp: 0.62 },
   { kw: ["cumin", "paprika", "oregano", "coriander", "chili powder", "black pepper", "white pepper", "spice", "seasoning", "vinegar", "soy sauce", "fish sauce", "lime juice", "lemon juice", "citrus", "cinnamon", "smoke", "extract", "sugar"], role: "high_impact", damp: 0.72 },
   { kw: ["egg", "cornstarch", "starch", "roux", "gelatin", "xanthan", "breadcrumb", "masa"], role: "binder", damp: 1 },
-  { kw: ["oil", "butter", "ghee", "lard"], role: "fat", damp: 1, kind: "asneeded" },
-];
-
-const ALLERGEN_KW: { kw: string[]; label: string }[] = [
-  { kw: ["milk", "cheese", "butter", "cream", "yogurt", "dairy"], label: "milk/dairy" },
-  { kw: ["egg"], label: "egg" },
-  { kw: ["wheat", "flour", "bread", "pasta", "soy sauce"], label: "wheat/gluten" },
-  { kw: ["soy", "tofu", "edamame", "miso"], label: "soy" },
-  { kw: ["peanut"], label: "peanut" },
-  { kw: ["almond", "cashew", "walnut", "pecan", "pistachio", "hazelnut", "tree nut"], label: "tree nut" },
-  { kw: ["sesame", "tahini"], label: "sesame" },
-  { kw: ["shrimp", "crab", "lobster", "shellfish", "clam", "scallop"], label: "shellfish" },
-  { kw: ["fish", "salmon", "tuna", "anchovy", "cod"], label: "fish" },
+  // A quantified fat (oil in a sauce, butter in a marinade) is a FORMULATION fat
+  // and scales; only explicit "as needed / for frying / to coat" lines are process fat.
+  { kw: ["oil", "butter", "ghee", "lard"], role: "fat", damp: 0.9 },
 ];
 
 function classify(name: string): { role: string; damp: number; kind?: "taste" | "asneeded" | "finishing" } {
@@ -235,26 +226,149 @@ function classify(name: string): { role: string; damp: number; kind?: "taste" | 
 }
 
 type ParsedLine = { name: string; num: number | null; unit: string; raw: string };
-function parseLine(line: string): ParsedLine | null {
-  let s = line.trim().replace(/^[-*•·]\s*/, "");
-  if (!s) return null;
-  if (/^(method|prep|directions?|instructions?|serv|note|yield|makes|preparation)\b/i.test(s)) return null;
-  const frac = s.match(/^(\d+)\s*\/\s*(\d+)\s*([a-zA-Z#"]+)?\s*(.*)$/);
-  const dec = s.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z#"]+)?\s*(.*)$/);
-  if (frac) {
-    return { num: Number(frac[1]) / Number(frac[2]), unit: (frac[3] || "").toLowerCase(), name: (frac[4] || "").trim() || s, raw: s };
+
+const KNOWN_UNIT =
+  /^(oz|ounces?|lbs?|pounds?|g|grams?|kg|cups?|c|tbsp|tablespoons?|tsp|teaspoons?|qts?|quarts?|pts?|pints?|gal|gallons?|fl|ml|l|liters?|litres?|each|ea|bunch(?:es)?|cans?|cases?|bags?|heads?|cloves?|sprigs?|slices?|pieces?|pcs?|dozen|sticks?|pkgs?|packages?|box(?:es)?|jars?|bottles?|sheets?|stalks?|ears?|links?)$/i;
+const AS_NEEDED = /^(as needed|to taste|as required|q\.?s\.?|pinch|for frying|to coat|for garnish)/i;
+
+/** "2.5 lb", "1 1/2 cups", "2–3 lb" (first number), "6 #10 cans", "18 each", "2 eggs" (no unit) -> {num, unit, rest}. */
+function parseQtyUnit(text: string): { num: number | null; unit: string; rest: string } {
+  const t = text.trim();
+  const can10 = t.match(/^(\d+(?:\.\d+)?)\s*#\s*10\s*cans?\s*/i);
+  if (can10) return { num: Number(can10[1]), unit: "#10 can", rest: t.slice(can10[0].length) };
+  const m = t.match(/^(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)(?:\s*[–—-]\s*\d+(?:\.\d+)?)?\s*/);
+  if (!m) return { num: null, unit: "", rest: t };
+  const tok = m[1];
+  const mixed = tok.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  const frac = tok.match(/^(\d+)\s*\/\s*(\d+)$/);
+  const num = mixed ? Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]) : frac ? Number(frac[1]) / Number(frac[2]) : Number(tok);
+  let rest = t.slice(m[0].length);
+  let unit = "";
+  const uw = rest.match(/^([a-zA-Z"]+)\.?\s*/);
+  if (uw && KNOWN_UNIT.test(uw[1])) {
+    unit = uw[1].toLowerCase();
+    rest = rest.slice(uw[0].length);
+    if (unit === "fl") {
+      const oz = rest.match(/^oz\.?\s*/i);
+      if (oz) {
+        unit = "floz";
+        rest = rest.slice(oz[0].length);
+      }
+    }
   }
-  if (dec) {
-    return { num: Number(dec[1]), unit: (dec[2] || "").toLowerCase(), name: (dec[3] || "").trim() || s, raw: s };
+  return { num, unit, rest: rest.trim() };
+}
+
+/** One ingredient line in either order: "2.5 lb chicken thighs" or "Chicken thighs – 2.5 lb". */
+function parseIngredientLine(line: string): ParsedLine | null {
+  const s = line.trim().replace(/^[-*•·]\s*/, "").trim();
+  if (!s) return null;
+  const nq = s.match(/^(.+?)\s+[–—-]\s+(.+)$/);
+  if (nq && (/^\d/.test(nq[2]) || AS_NEEDED.test(nq[2]))) {
+    const q = parseQtyUnit(nq[2]);
+    return { name: nq[1].trim(), num: q.num, unit: q.unit, raw: s };
+  }
+  if (/^\d/.test(s)) {
+    const q = parseQtyUnit(s);
+    return { name: q.rest || s, num: q.num, unit: q.unit, raw: s };
   }
   return { num: null, unit: "", name: s, raw: s };
 }
 
+type Section = "head" | "ingredients" | "method" | "other";
+
+/** Recognize section headers in a standardized recipe card. */
+function sectionOf(line: string): Exclude<Section, "head"> | null {
+  const t = line.trim().replace(/[-=_*]{3,}/g, "").trim().toLowerCase().replace(/:$/, "");
+  if (!t) return null;
+  if (/^ingredients?\b/.test(t)) return "ingredients";
+  if (/^(method|directions?|instructions?|procedure|preparation|steps?)\b/.test(t)) return "method";
+  if (/^(scaling|ai test|food safety|holding|notes?|allergen|nutrition|yield|portion size|cuisine|primary test|equipment|serving|plating|garnish|storage|test focus|chef notes?)\b/.test(t)) return "other";
+  return null;
+}
+
+type ParsedRecipe = { dish: string | null; ingredients: ParsedLine[]; method: string[] };
+
+/**
+ * Structure-aware parse. Cards with an INGREDIENTS header only yield
+ * ingredients from that section (meta lines like "Yield: 6 servings" and
+ * safety notes are skipped); METHOD lines become the procedure. Plain pastes
+ * ("- 2 lb x" lines, then "Method: ...") still work as before.
+ */
+function parseRecipeText(text: string): ParsedRecipe {
+  const lines = text.split("\n").map((l) => l.replace(/\r$/, "").trim());
+  const hasSections = lines.some((l) => sectionOf(l) === "ingredients");
+  let section: Section = hasSections ? "other" : "head";
+  const ingredients: ParsedLine[] = [];
+  const method: string[] = [];
+  let dish: string | null = null;
+  let first = true;
+
+  const pushSteps = (s: string) => {
+    for (const step of s.split(/(?<=\.)\s+(?=[A-Z])/)) {
+      const clean = step.replace(/^(\d+[.)]|[-*•·])\s*/, "").trim();
+      if (clean) method.push(clean);
+    }
+  };
+
+  for (const line of lines) {
+    if (!line || /^[-=_*]{3,}$/.test(line)) continue;
+    const sec = sectionOf(line);
+    if (sec) {
+      section = sec;
+      continue;
+    }
+    if (first) {
+      first = false;
+      if (!/\d/.test(line) && !/:$/.test(line) && !/^[-*•·]/.test(line) && line.split(/\s+/).length <= 6) {
+        dish = line;
+        continue;
+      }
+    }
+    if (section === "other") continue;
+    if (section === "method") {
+      pushSteps(line);
+      continue;
+    }
+    // head or ingredients
+    if (/^method\b/i.test(line)) {
+      section = "method";
+      pushSteps(line.replace(/^method:?\s*/i, ""));
+      continue;
+    }
+    if (/^(prep|directions?|instructions?|serves?|makes|yield|note)s?\b/i.test(line)) continue;
+    if (/:$/.test(line) && !/\d/.test(line)) continue; // group header: "Chicken:", "Breading:"
+    const p = parseIngredientLine(line);
+    if (p) ingredients.push(p);
+  }
+  return { dish, ingredients, method };
+}
+
+const PLURAL: Record<string, [string, string]> = {
+  cup: ["cup", "cups"], cups: ["cup", "cups"], can: ["can", "cans"], cans: ["can", "cans"], bunch: ["bunch", "bunches"], bunches: ["bunch", "bunches"],
+  case: ["case", "cases"], cases: ["case", "cases"], bag: ["bag", "bags"], bags: ["bag", "bags"], head: ["head", "heads"], heads: ["head", "heads"],
+  clove: ["clove", "cloves"], cloves: ["clove", "cloves"], slice: ["slice", "slices"], slices: ["slice", "slices"], piece: ["piece", "pieces"], pieces: ["piece", "pieces"],
+  sprig: ["sprig", "sprigs"], sprigs: ["sprig", "sprigs"], stick: ["stick", "sticks"], sticks: ["stick", "sticks"], jar: ["jar", "jars"], jars: ["jar", "jars"],
+  bottle: ["bottle", "bottles"], bottles: ["bottle", "bottles"], sheet: ["sheet", "sheets"], sheets: ["sheet", "sheets"], link: ["link", "links"], links: ["link", "links"],
+  ear: ["ear", "ears"], ears: ["ear", "ears"], stalk: ["stalk", "stalks"], stalks: ["stalk", "stalks"], quart: ["quart", "quarts"], quarts: ["quart", "quarts"],
+  pint: ["pint", "pints"], pints: ["pint", "pints"], gallon: ["gallon", "gallons"], gallons: ["gallon", "gallons"], pound: ["lb", "lb"], pounds: ["lb", "lb"], lbs: ["lb", "lb"],
+};
+
+function withUnit(value: number, unit: string): string {
+  const p = PLURAL[unit];
+  if (p) return `${trim(value)} ${value === 1 ? p[0] : p[1]}`;
+  return `${trim(value)} ${unit}`;
+}
+
 function fmtGeneric(value: number, unit: string): string {
+  if (unit === "#10 can") return `${Math.max(1, Math.round(value))} #10 cans`;
+  if (unit === "") return `${Math.max(1, Math.round(value))} each`;
   if (unit === "oz" && value >= 16) return `${trim(value / 16)} lb`;
-  if (unit === "tbsp" && value >= 16) return `${trim(value / 16)} cups`;
+  if (unit === "tbsp" && value >= 16) return withUnit(round(value / 16), "cups");
+  if (unit === "tsp" && value >= 48) return withUnit(round(value / 48), "cups");
+  if (unit === "tsp" && value >= 12) return `${trim(value / 3)} Tbsp`;
   if ((unit === "cup" || unit === "cups") && value >= 16) return `${trim(value)} cups (~${trim(value / 16)} gal)`;
-  return unit ? `${trim(value)} ${unit}` : trim(value);
+  return unit ? withUnit(value, unit) : trim(value);
 }
 
 export function demoScaleFromText(
@@ -262,16 +376,12 @@ export function demoScaleFromText(
   basePortions: number,
   covers: number,
   portionSize: string,
-  notesApplied = 0
+  notesApplied = 0,
+  dishName?: string
 ): ProductionSheet {
-  const lines = recipeText.split("\n");
-  const parsed = lines.map(parseLine).filter((p): p is ParsedLine => !!p);
-  // Pull a dish name: a leading non-quantity line that isn't an ingredient.
-  let dish = "Your recipe";
-  if (parsed.length && parsed[0].num === null && parsed[0].name.split(" ").length <= 6) {
-    dish = parsed[0].name;
-  }
-  const ingLines = parsed.filter((p) => p.name && !(p.num === null && p === parsed[0] && dish !== "Your recipe"));
+  const parsed = parseRecipeText(recipeText);
+  const dish = (dishName && dishName.trim()) || parsed.dish || "Your recipe";
+  const ingLines = parsed.ingredients;
 
   if (ingLines.length === 0) {
     // Couldn't parse anything useful — fall back to the curated sample.
@@ -280,22 +390,23 @@ export function demoScaleFromText(
 
   const base = basePortions > 0 ? basePortions : 50;
   const mult = (covers > 0 ? covers : base) / base;
-  const allergens = new Set<string>();
+  // Same allergen list as the referee, so the sheet's flags and the check agree.
+  const allergens = new Set<string>(detectAllergens(ingLines.map((p) => p.name).join(" ")));
   // Brine/cure/pickle/ferment = functional chemistry -> salt & acid scale LINEARLY (never dampen).
   const funcChem = isFunctionalChemistry(recipeText);
   const safetyRules = detectSafety(recipeText);
 
   const ingredients = ingLines.map((p) => {
     const cls = classify(p.name);
-    for (const a of ALLERGEN_KW) if (a.kw.some((k) => p.name.toLowerCase().includes(k))) allergens.add(a.label);
-    // In a functional-chemistry prep, salt / cure / acid are ratios, not seasoning.
-    const chem = funcChem && (cls.role === "high_impact" || /\b(salt|cure|nitrite|sugar|vinegar|brine)\b/.test(p.name.toLowerCase()));
+    // In a functional-chemistry prep the CHEMISTRY ingredients (salt, cure,
+    // sugar, acid) hold their ratio; other seasonings still dampen normally.
+    const chem = funcChem && /\b(salt|cure|curing|nitrite|prague|sugar|vinegar|brine|citric)\b/.test(p.name.toLowerCase());
     const role = chem ? "functional" : cls.role;
     const damp = chem ? 1 : cls.damp;
     const kind = chem ? undefined : cls.kind;
 
-    if (kind === "taste") return { item: p.name, scaledQty: "to taste, in stages", unit: p.unit, role, baseQty: p.raw, multiplier: "staged", note: "season on the line" };
-    if (kind === "asneeded") return { item: p.name, scaledQty: "as needed (cook in batches)", unit: p.unit, role, baseQty: p.raw, multiplier: "by surface area", note: "" };
+    if (kind === "asneeded" || (p.num === null && role === "fat")) return { item: p.name, scaledQty: "as needed (cook in batches)", unit: p.unit, role, baseQty: p.raw, multiplier: "by surface area", note: "" };
+    if (kind === "taste" && p.num === null) return { item: p.name, scaledQty: "to taste, in stages", unit: p.unit, role, baseQty: p.raw, multiplier: "staged", note: "season on the line" };
     if (p.num === null) return { item: p.name, scaledQty: "scale to taste", unit: p.unit, role, baseQty: p.raw, multiplier: "", note: "" };
     const eff = mult * damp;
     const scaled = p.num * eff;
@@ -306,7 +417,15 @@ export function demoScaleFromText(
       role,
       baseQty: `${trim(p.num)} ${p.unit}`.trim(),
       multiplier: chem ? `x${trim(mult)} (ratio held — safety)` : damp < 1 ? `x${trim(eff)} (dampened)` : `x${trim(mult)}`,
-      note: chem ? "functional chemistry — scaled to ratio, NOT dampened" : role === "high_impact" && damp < 1 ? "dampened — season up at the end" : "",
+      note: chem
+        ? "functional chemistry — scaled to ratio, NOT dampened"
+        : kind === "taste"
+          ? "dampened — add in stages and taste at scale"
+          : role === "fat"
+            ? "formulation fat — scaled for richness; pan oil is separate"
+            : role === "high_impact" && damp < 1
+              ? "dampened — season up at the end"
+              : "",
     };
   });
 
@@ -326,7 +445,7 @@ export function demoScaleFromText(
       "DEMO PREVIEW — a rough linear+dampening estimate on YOUR recipe (no AI). The live engine reasons about ingredient function, batching, holding & food safety properly. Verify amounts before production.",
     ],
     ingredients,
-    method: [],
+    method: parsed.method,
     batching: [
       "Large volumes exceed single-vessel capacity — cook in batches; don't overcrowd (sear/toast, don't steam).",
       "Cook starches and proteins in batches for even results.",
@@ -337,7 +456,9 @@ export function demoScaleFromText(
     ],
     pullList: applyPurchasing(
       ingredients
-        .filter((i) => i.role !== "fat" && i.role !== "finishing" && !(/salt/i.test(i.item) && !funcChem) && i.scaledQty !== "scale to taste")
+        // Everything with a real quantity gets ordered — garnish and formulation
+        // fat included. Only "to taste" / "as needed" lines have nothing to buy.
+        .filter((i) => !/^(to taste|as needed|scale to taste)/i.test(i.scaledQty))
         .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" }))
     ),
     safetyFlags: [

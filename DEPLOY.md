@@ -46,6 +46,15 @@ clears, one login per chef.
 The landing page `/` is always public. Never set the Supabase **service_role**
 key anywhere in this app — it isn't needed and would bypass row-level security.
 
+## Before every deploy
+```bash
+npm run sweep
+```
+Runs all 54 recipes (the chef's presets + the test library) through the whole
+deterministic pipeline — scaler, accuracy referee, purchasing, nutrition,
+HACCP, prep list, SOP — and fails on anything that throws or breaks the schema.
+`npm run sweep -- --only=tomato --dump` shows one recipe in full.
+
 ## After it's live
 - Local dev keeps working as before: `npm run dev` with your `.env.local`.
 - Every push to `main` redeploys automatically.

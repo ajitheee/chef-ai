@@ -48,7 +48,7 @@ function lc(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
-function taskFor(item: string, st: Station, marinates: boolean): string {
+function taskFor(item: string, st: Station, marinates: boolean, canned = false): string {
   const d = item.match(DESCRIPTOR);
   const desc = d ? d[1].toLowerCase() : null;
   const name = lc(item.replace(DESCRIPTOR, "").trim());
@@ -62,7 +62,7 @@ function taskFor(item: string, st: Station, marinates: boolean): string {
     case "Sauces & liquids":
       return `Measure ${name}`;
     default:
-      return CANNED.test(item.toLowerCase()) ? `Open ${name}` : `Weigh ${name}`;
+      return canned || CANNED.test(item.toLowerCase()) ? `Open ${name}` : `Weigh ${name}`;
   }
 }
 
@@ -76,7 +76,8 @@ function buildTasks(sheet: ProductionSheet): { tasks: Task[]; marinates: boolean
   const soaks = /\bsoak/.test(blob);
 
   const tasks: Task[] = sheet.ingredients.map((ing) => {
-    const st = station(ing.item, ing.role);
+    const canned = /#\s*10\s*can/i.test(ing.scaledQty);
+    const st: Station = canned ? "Dry goods & spices" : station(ing.item, ing.role);
     const t = ing.item.toLowerCase();
     const toTaste = /to taste|staged/.test(ing.scaledQty);
     const asNeeded = /as needed/.test(ing.scaledQty);
@@ -86,7 +87,7 @@ function buildTasks(sheet: ProductionSheet): { tasks: Task[]; marinates: boolean
 
     if (st === "Garnish & finishing") {
       when = "At service";
-      text = `${taskFor(ing.item, st, marinates)} — ${ing.scaledQty}`;
+      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty}`;
     } else if (toTaste) {
       when = "At service";
       text = `Season with ${lc(ing.item)} — ${ing.scaledQty} (on the line)`;
@@ -94,15 +95,15 @@ function buildTasks(sheet: ProductionSheet): { tasks: Task[]; marinates: boolean
       text = `Set up ${lc(ing.item)} — ${ing.scaledQty}`;
     } else if (st === "Butcher & proteins") {
       when = marinates ? "Day before" : "Morning of";
-      text = `${taskFor(ing.item, st, marinates)} — ${ing.scaledQty}`;
+      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty}`;
     } else if (soaks && /\bbeans?\b|lentil|chickpea/.test(t) && !CANNED.test(t)) {
       when = "Day before";
       text = `Soak ${lc(ing.item)} — ${ing.scaledQty}`;
     } else if (marinates && (st === "Sauces & liquids" || MARINADE_PART.test(t)) && !/stock|broth/.test(t)) {
       when = "Day before";
-      text = `${taskFor(ing.item, st, marinates)} — ${ing.scaledQty} (marinade)`;
+      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty} (marinade)`;
     } else {
-      text = `${taskFor(ing.item, st, marinates)} — ${ing.scaledQty}`;
+      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty}`;
     }
     if (ing.note && /dampen|ratio|safety/.test(ing.note)) text += ` · ${ing.note}`;
     return { station: st, when, text };

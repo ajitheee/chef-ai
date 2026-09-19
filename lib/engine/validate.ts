@@ -28,13 +28,22 @@ const UNIT: Record<string, { family: Family; base: number }> = {
   bunch: { family: "count", base: 1 }, bunches: { family: "count", base: 1 }, can: { family: "count", base: 1 }, cans: { family: "count", base: 1 },
   case: { family: "count", base: 1 }, cases: { family: "count", base: 1 }, bag: { family: "count", base: 1 }, bags: { family: "count", base: 1 },
   head: { family: "count", base: 1 }, heads: { family: "count", base: 1 }, dozen: { family: "count", base: 12 }, count: { family: "count", base: 1 }, ct: { family: "count", base: 1 },
+  slice: { family: "count", base: 1 }, slices: { family: "count", base: 1 }, clove: { family: "count", base: 1 }, cloves: { family: "count", base: 1 },
+  sprig: { family: "count", base: 1 }, sprigs: { family: "count", base: 1 }, stick: { family: "count", base: 1 }, sticks: { family: "count", base: 1 },
+  pkg: { family: "count", base: 1 }, package: { family: "count", base: 1 }, packages: { family: "count", base: 1 }, jar: { family: "count", base: 1 }, jars: { family: "count", base: 1 },
+  bottle: { family: "count", base: 1 }, bottles: { family: "count", base: 1 }, box: { family: "count", base: 1 }, boxes: { family: "count", base: 1 },
+  sheet: { family: "count", base: 1 }, sheets: { family: "count", base: 1 }, stalk: { family: "count", base: 1 }, stalks: { family: "count", base: 1 },
+  ear: { family: "count", base: 1 }, ears: { family: "count", base: 1 }, link: { family: "count", base: 1 }, links: { family: "count", base: 1 }, pc: { family: "count", base: 1 }, pcs: { family: "count", base: 1 },
 };
 
+/** The LEADING quantity only — "5 oz pork with 1/2 cup beans" is 5, not 0.5. */
 function parseNum(s: string): number | null {
-  const cleaned = s.replace(/,/g, " ");
-  const frac = cleaned.match(/(\d+)\s*\/\s*(\d+)/);
+  const cleaned = s.replace(/,/g, " ").replace(/^[^\d]*/, "");
+  const mixed = cleaned.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)/);
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+  const frac = cleaned.match(/^(\d+)\s*\/\s*(\d+)/);
   if (frac) return Number(frac[1]) / Number(frac[2]);
-  const m = cleaned.match(/\d+(\.\d+)?/);
+  const m = cleaned.match(/^\d+(\.\d+)?/);
   return m ? Number(m[0]) : null;
 }
 
@@ -45,7 +54,8 @@ function parseQ(s: string): { n: number; family: Family; base: number } | null {
   if (n == null) return null;
   const lower = s.toLowerCase();
   let unit: { family: Family; base: number } | null = null;
-  if (/\bfl\s*oz\b/.test(lower)) unit = UNIT.floz;
+  if (/#\s*10\s*cans?/.test(lower)) unit = UNIT.can;
+  else if (/\bfl\s*oz\b/.test(lower)) unit = UNIT.floz;
   else {
     for (const key of Object.keys(UNIT)) {
       if (new RegExp(`\\b${key}\\b`).test(lower)) {
@@ -74,7 +84,7 @@ const ALLERGENS: Record<string, RegExp> = {
   peanut: /\bpeanut/i,
   "tree nut": /\b(almond|walnut|pecan|cashew|pistachio|hazelnut|macadamia)\b/i,
   fish: /\b(fish|salmon|tuna|cod|anchov|halibut)\b/i,
-  shellfish: /\b(shrimp|prawn|crab|lobster|mussel|clam|oyster|scallop|squid|calamari)\b/i,
+  shellfish: /\b(shrimp|prawn|crab|lobster|mussel|clam|oyster(?!\s*mushroom)|scallop|squid|calamari)\b/i,
   sesame: /\b(sesame|tahini)\b/i,
 };
 
@@ -134,7 +144,8 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
   }
 
   // 3 — Allergen check: ingredients that imply allergens must be flagged.
-  const text = (sheet.ingredients.map((i) => i.item).join(" ") + " " + sheet.dish).toLowerCase();
+  // Ingredient names only — a dish called "Chickpea 'Tuna' Salad" contains no fish.
+  const text = sheet.ingredients.map((i) => i.item).join(" ").toLowerCase();
   const detected = detectAllergens(text);
   if (detected.length === 0) {
     checks.push({ label: "Allergen check", status: "info", detail: "No common allergens detected in the ingredient names." });

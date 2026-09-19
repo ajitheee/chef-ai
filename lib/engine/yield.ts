@@ -14,6 +14,10 @@ const NO_YIELD = /stock|broth|bouillon|\bbase\b|powder|sauce|paste|puree|purée|
 
 /** EP/AP: fraction of the purchased item that ends up usable in the recipe (first match wins). */
 export const YIELDS: YieldEntry[] = [
+  // cooked-product lines: the card wants COOKED weight; you order the DRY product (cook-up ratio > 1)
+  { match: /cooked\s+(white\s+|brown\s+|jasmine\s+|basmati\s+|long[- ]grain\s+)?rice|steamed rice|rice,\s*cooked/i, label: "cooked rice → dry rice", yield: 3, note: "cooks up ~3×" },
+  { match: /cooked\s+(pasta|noodles?|spaghetti|penne|macaroni)|pasta,\s*cooked/i, label: "cooked pasta → dry pasta", yield: 2.2, note: "cooks up ~2.2×" },
+  { match: /cooked\s+(quinoa|couscous|farro|barley|bulgur)/i, label: "cooked grain → dry grain", yield: 2.8, note: "cooks up ~2.8×" },
   // proteins
   { match: /boneless.*(chicken|thigh|breast)|chicken (breast|thigh|tender)/i, label: "boneless chicken", yield: 0.95, note: "light trim" },
   { match: /whole chicken|bone-in chicken|chicken (leg|quarter|wing|drum)/i, label: "bone-in chicken", yield: 0.7, note: "bone + skin" },
@@ -61,6 +65,9 @@ export const DENSITIES: DensityEntry[] = [
   { match: /\boil\b|ghee/i, ozPerCup: 7.7, buyBy: "volume", label: "oil" },
   { match: /puree|purée|sauce|salsa|ketchup|passata/i, ozPerCup: 8.8, buyBy: "volume", label: "puree / sauce" },
   { match: /honey|syrup|molasses/i, ozPerCup: 12, buyBy: "volume", label: "syrup" },
+  { match: /cooked.*rice|steamed rice|rice,\s*cooked/i, ozPerCup: 5.6, buyBy: "weight", label: "rice, cooked" },
+  { match: /cooked.*(pasta|noodle)/i, ozPerCup: 5, buyBy: "weight", label: "pasta, cooked" },
+  { match: /cooked.*(quinoa|couscous|farro|barley|bulgur)/i, ozPerCup: 6.5, buyBy: "weight", label: "grain, cooked" },
   { match: /rice/i, ozPerCup: 6.9, buyBy: "weight", label: "rice, dry" },
   { match: /flour|masa|cornmeal/i, ozPerCup: 4.25, buyBy: "weight", label: "flour" },
   { match: /brown sugar/i, ozPerCup: 7.75, buyBy: "weight", label: "brown sugar" },
@@ -97,7 +104,7 @@ type Parsed = { n: number; unit: string; fam: "weight" | "volume" | "count" };
 
 function parseQty(s: string): Parsed | null {
   const cleaned = s.replace(/[~≈]/g, "").replace(/,/g, "").trim();
-  const m = cleaned.match(/(\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*(fl\s*oz|[a-zA-Z]+)?/);
+  const m = cleaned.match(/(\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*(#\s*10\s*cans?|fl\s*oz|[a-zA-Z]+)?/);
   if (!m) return null;
   const numTok = m[1];
   const n = numTok.includes("/") ? Number(numTok.split("/")[0]) / Number(numTok.split("/")[1]) : Number(numTok);
@@ -124,8 +131,8 @@ const G_PER_OZ = 28.3495;
 function perUnitOz(item: string, unit: string): number | null {
   const it = item.toLowerCase();
   const u = unit.toLowerCase();
-  const tenCan = /#\s*10|\b10\s*can\b/.test(it);
-  if (u === "#" || u === "#10" || (u === "" && tenCan)) return 102; // #10 can ≈ 6 lb 6 oz
+  const tenCan = /#\s*10|\b10\s*cans?\b/.test(it);
+  if (/^#\s*10/.test(u) || u === "#" || (u === "" && tenCan)) return 102; // #10 can ≈ 6 lb 6 oz
   if (/^cans?$/.test(u)) return tenCan ? 102 : 15;
   if (/^cases?$/.test(u)) return /can/.test(it) ? 612 : null; // 6 x #10
   if (/^bunch(es)?$/.test(u)) return /scallion|green onion/.test(it) ? 3.5 : /kale|chard|collard/.test(it) ? 8 : 2.5;
@@ -183,7 +190,14 @@ export type PurchasingResult = { apQty: string; note: string };
  */
 export function purchasingLine(item: string, epQty: string): PurchasingResult {
   const q = parseQty(epQty);
-  if (!q || q.fam === "count") return { apQty: epQty, note: "" };
+  if (!q) return { apQty: epQty, note: "" };
+  if (q.fam === "count") {
+    if (/^#\s*10/.test(q.unit)) {
+      const cases = Math.ceil(q.n / 6);
+      return { apQty: epQty, note: `≈ ${cases} case${cases === 1 ? "" : "s"} of 6` };
+    }
+    return { apQty: epQty, note: "" };
+  }
 
   const density = lookupDensity(item);
   let epOz: number | null = null;
@@ -197,6 +211,12 @@ export function purchasingLine(item: string, epQty: string): PurchasingResult {
   if (epOz == null) return { apQty: epQty, note: "" }; // liquids by volume stay as-is
 
   const y = lookupYield(item);
+  if (y && y.yield > 1) {
+    // cook-up: the card's cooked weight ÷ ratio = dry product to order
+    const apOz = epOz / y.yield;
+    const note = [via, `${fmtWeight(epOz)} cooked needed · ${y.note}`].filter(Boolean).join(" · ");
+    return { apQty: `~${fmtWeight(apOz)} dry`, note };
+  }
   if (y && y.yield < 1) {
     const apOz = epOz / y.yield;
     const pct = Math.round(y.yield * 100);

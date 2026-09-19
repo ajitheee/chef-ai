@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       const isSample = text === SAMPLE.recipeText.trim();
       const sheet =
         text && !isSample
-          ? demoScaleFromText(text, input.basePortions, input.targetCovers, input.portionSize, input.kitchenNotes.length)
+          ? demoScaleFromText(text, input.basePortions, input.targetCovers, input.portionSize, input.kitchenNotes.length, input.dish)
           : demoScale(input.targetCovers, input.portionSize, input.kitchenNotes.length);
       return NextResponse.json({ ok: true, sheet, demo: true });
     }

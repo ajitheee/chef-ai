@@ -61,6 +61,10 @@ export function buildUserContent(
     );
   }
 
+  if (input.dish && input.dish.trim()) {
+    lines.push(`DISH: ${input.dish.trim()}`);
+  }
+
   if (input.recipeText && input.recipeText.trim()) {
     lines.push(
       `RECIPE (base yield: ${input.basePortions} portions):`,

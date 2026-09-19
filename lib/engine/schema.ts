@@ -9,6 +9,7 @@ export type ImageInput = z.infer<typeof ImageInputSchema>;
 
 export const ScaleInputSchema = z
   .object({
+    dish: z.string().optional().default(""),
     recipeText: z.string().optional().default(""),
     basePortions: z.number().positive("Base portions must be > 0."),
     targetCovers: z.number().positive("Target covers must be > 0."),
