@@ -47,25 +47,35 @@ function parseNum(s: string): number | null {
   return m ? Number(m[0]) : null;
 }
 
-/** Parse a "quantity + unit" string into base units (oz for weight, fl oz for volume). */
+function toNum(tok: string): number {
+  const mixed = tok.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+  const frac = tok.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return Number(frac[1]) / Number(frac[2]);
+  return Number(tok);
+}
+
+/**
+ * Parse a "quantity + unit" string into base units (oz for weight, fl oz for
+ * volume). A unit binds to the number RIGHT BEFORE it — "2 tacos (≈5 oz pork
+ * fill per serving)" is 5 oz, not 2 oz. Unknown units return null.
+ */
 function parseQ(s: string): { n: number; family: Family; base: number } | null {
   if (!s) return null;
-  const n = parseNum(s);
-  if (n == null) return null;
-  const lower = s.toLowerCase();
-  let unit: { family: Family; base: number } | null = null;
-  if (/#\s*10\s*cans?/.test(lower)) unit = UNIT.can;
-  else if (/\bfl\s*oz\b/.test(lower)) unit = UNIT.floz;
-  else {
-    for (const key of Object.keys(UNIT)) {
-      if (new RegExp(`\\b${key}\\b`).test(lower)) {
-        unit = UNIT[key];
-        break;
-      }
-    }
+  const lower = s.toLowerCase().replace(/,/g, "");
+  if (/#\s*10\s*cans?/.test(lower)) {
+    const n = parseNum(lower);
+    return n == null ? null : { n, family: "count", base: 1 };
   }
-  if (!unit) return null;
-  return { n, family: unit.family, base: unit.base };
+  const fl = lower.match(/(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*fl\.?\s*oz\b/);
+  if (fl) return { n: toNum(fl[1]), family: "volume", base: 1 };
+  const pair = /(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*([a-z]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = pair.exec(lower))) {
+    const u = UNIT[m[2]];
+    if (u) return { n: toNum(m[1]), family: u.family, base: u.base };
+  }
+  return null;
 }
 
 function fmtWeight(oz: number): string {
@@ -75,6 +85,17 @@ function fmtWeight(oz: number): string {
   }
   return `${Math.round(oz)} oz`;
 }
+
+function fmtVolume(floz: number): string {
+  if (floz >= 128) {
+    const gal = floz / 128;
+    return `${gal >= 20 ? Math.round(gal) : gal.toFixed(1)} gal`;
+  }
+  if (floz >= 32) return `${(floz / 32).toFixed(1)} qt`;
+  return `${Math.round(floz)} fl oz`;
+}
+
+const fmtBase = (n: number, family: Family) => (family === "volume" ? fmtVolume(n) : fmtWeight(n));
 
 const ALLERGENS: Record<string, RegExp> = {
   "milk/dairy": /\b(milk|dairy|butter|cream|cheese|yogurt|buttermilk|ghee|paneer|parmesan|mozzarella)\b/i,
@@ -109,14 +130,14 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
       checks.push({
         label: "Portion integrity",
         status: "pass",
-        detail: `${covers} × ${sheet.targetYield.portionSize} ≈ ${fmtWeight(expected)}, matches finished yield ${fmtWeight(actual)}`,
+        detail: `${covers} × ${sheet.targetYield.portionSize} ≈ ${fmtBase(expected, p.family)}, matches finished yield ${fmtBase(actual, p.family)}`,
       });
     } else {
       const off = Math.round(Math.abs(ratio - 1) * 100);
       checks.push({
         label: "Portion integrity",
         status: "warn",
-        detail: `${covers} covers × portion ≈ ${fmtWeight(expected)}, but finished yield says ${fmtWeight(actual)} — ${off}% off. Check the yield.`,
+        detail: `${covers} covers × portion ≈ ${fmtBase(expected, p.family)}, but finished yield says ${fmtBase(actual, p.family)} — ${off}% off. Check the yield.`,
       });
     }
   } else {

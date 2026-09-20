@@ -770,7 +770,13 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
 
       {/* Table — tablet & desktop */}
       <div className="hidden overflow-x-auto sm:block">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-[26%]" />
+            <col className="w-[20%]" />
+            <col className="w-[16%]" />
+            <col className="w-[38%]" />
+          </colgroup>
           <thead>
             <tr className="border-b-2 border-[#3A2A1E]/15 text-left text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45">
               <th className="py-2 pr-3">Ingredient</th>
@@ -782,10 +788,10 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
           <tbody>
             {sheet.ingredients.map((ing, i) => (
               <tr key={i} className="border-b border-[#3A2A1E]/8 align-top">
-                <td className="py-2 pr-3 font-semibold">{ing.item}</td>
-                <td className="py-2 pr-3 whitespace-nowrap text-[#C24E33]">{ing.scaledQty}</td>
-                <td className="py-2 pr-3 whitespace-nowrap text-[#3A2A1E]/55">{ing.multiplier}</td>
-                <td className="py-2 text-[#3A2A1E]/60">{ing.note}</td>
+                <td className="break-words py-2 pr-3 font-semibold">{ing.item}</td>
+                <td className="break-words py-2 pr-3 text-[#C24E33]">{ing.scaledQty}</td>
+                <td className="break-words py-2 pr-3 text-[#3A2A1E]/55">{ing.multiplier}</td>
+                <td className="break-words py-2 text-[#3A2A1E]/60">{ing.note}</td>
               </tr>
             ))}
           </tbody>
