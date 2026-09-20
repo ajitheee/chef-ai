@@ -5,7 +5,7 @@ import { isDemoMode, demoScale, demoScaleFromText } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * The built-in (no-AI) scaler. For the curated sample, the hand-tuned Mexican

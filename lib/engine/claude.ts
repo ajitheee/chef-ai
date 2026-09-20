@@ -21,6 +21,12 @@ import {
 // has access to a different Claude version.
 export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 
+// Per-call engine timeout. A long card can take 60-90 s to generate; the
+// routes allow 300 s (maxDuration), and with one retry the worst case stays
+// under that — so a slow call falls back to the built-in estimate instead of
+// the platform killing the function mid-response.
+export const ENGINE_TIMEOUT_MS = Number(process.env.ENGINE_TIMEOUT_MS) || 140_000;
+
 /**
  * Calls Claude with the v4.0 dining-hall engine and returns a validated
  * production sheet. The Anthropic client is created lazily so the app builds
@@ -34,7 +40,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: 1 });
 
   const response = await client.messages.create({
     model: MODEL,
@@ -52,7 +58,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
     ],
     tool_choice: { type: "tool", name: "emit_production_sheet" },
     messages: [{ role: "user", content: buildUserContent(input) }],
-  });
+  }, { timeout: ENGINE_TIMEOUT_MS });
 
   const block = response.content.find((b) => b.type === "tool_use");
   if (!block || block.type !== "tool_use") {
@@ -77,6 +83,9 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
 export function engineFailure(e: unknown): string | null {
   const status = e instanceof Anthropic.APIError ? e.status : undefined;
   const msg = e instanceof Error ? e.message : String(e);
+  if (e instanceof Anthropic.APIConnectionTimeoutError || /timed out|timeout/i.test(msg)) {
+    return "The AI engine took too long on this recipe.";
+  }
   if (status === 401 || /authentication_error|api key is invalid|invalid x-api-key|Missing ANTHROPIC_API_KEY/i.test(msg)) {
     return "The AI engine's API key is invalid or missing on the server.";
   }
@@ -100,7 +109,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: 1 });
 
   const response = await client.messages.create({
     model: MODEL,
@@ -115,7 +124,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
     ],
     tool_choice: { type: "tool", name: "emit_variations" },
     messages: [{ role: "user", content: buildVariationsMessage(input) }],
-  });
+  }, { timeout: ENGINE_TIMEOUT_MS });
 
   const block = response.content.find((b) => b.type === "tool_use");
   if (!block || block.type !== "tool_use") {
@@ -143,7 +152,7 @@ export async function refineSheet(
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: 1 });
 
   const response = await client.messages.create({
     model: MODEL,
@@ -160,7 +169,7 @@ export async function refineSheet(
     messages: [
       { role: "user", content: buildRefineMessage(JSON.stringify(sheet), instruction) },
     ],
-  });
+  }, { timeout: ENGINE_TIMEOUT_MS });
 
   const block = response.content.find((b) => b.type === "tool_use");
   if (!block || block.type !== "tool_use") {

@@ -13,6 +13,28 @@ import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutritio
 import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/ops";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
+type ApiReply = {
+  ok?: boolean;
+  error?: string;
+  sheet?: unknown;
+  demo?: boolean;
+  note?: string;
+  result?: { variations?: unknown };
+};
+
+/** Parse an API reply; a platform error page (timeout, crash) becomes one plain sentence, not a JSON parser error. */
+async function readJson(res: Response): Promise<ApiReply> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as ApiReply;
+  } catch {
+    if (res.status === 504 || /FUNCTION_INVOCATION_TIMEOUT|timed out/i.test(text)) {
+      throw new Error("The engine took too long on this recipe — try again, or scale a shorter card.");
+    }
+    throw new Error(`The server returned an unexpected response (${res.status}). Try again in a moment.`);
+  }
+}
+
 export default function Home() {
   const [recipeName, setRecipeName] = useState("");
   const [recipeText, setRecipeText] = useState("");
@@ -246,7 +268,7 @@ export default function Home() {
           kitchenNotes: kitchen.map((n) => n.text),
         }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!data.ok) throw new Error(data.error || "Failed to scale.");
       const s = data.sheet as ProductionSheet;
       setSheet(s);
@@ -272,7 +294,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sheet, instruction: refineText }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!data.ok) throw new Error(data.error || "Failed to refine.");
       if (data.note) {
         setRefineNote(data.note);
@@ -309,7 +331,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dish: recipeName, recipeText, portionSize, equipment }),
       });
-      const data = await res.json();
+      const data = await readJson(res);
       if (!data.ok) throw new Error(data.error || "Failed to get variations.");
       const vs = (data.result?.variations || []) as Variation[];
       setVariations(vs);

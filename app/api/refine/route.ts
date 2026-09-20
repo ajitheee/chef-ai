@@ -5,7 +5,7 @@ import { ProductionSheetSchema } from "@/lib/engine/schema";
 import { isDemoMode } from "@/lib/engine/demo";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const RefineRequestSchema = z.object({
   sheet: ProductionSheetSchema,
