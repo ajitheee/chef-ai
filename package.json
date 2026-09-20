@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "sweep": "tsx scripts/sweep.ts"
+    "sweep": "tsx scripts/sweep.ts",
+    "referee": "tsx scripts/referee-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

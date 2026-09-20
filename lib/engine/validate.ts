@@ -78,6 +78,17 @@ function parseQ(s: string): { n: number; family: Family; base: number } | null {
   return null;
 }
 
+/** How many "number + known unit" pairs a string carries ("5 oz pork + 1/2 cup beans" = 2). */
+function knownPairs(s: string): number {
+  const lower = (s || "").toLowerCase().replace(/,/g, "");
+  const pair = /(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*([a-z]+)/g;
+  let n = 0;
+  let m: RegExpExecArray | null;
+  while ((m = pair.exec(lower))) if (UNIT[m[2]] && UNIT[m[2]].family !== "count") n++;
+  if (/\bfl\.?\s*oz\b/.test(lower)) n = Math.max(n, 1);
+  return n;
+}
+
 function fmtWeight(oz: number): string {
   if (oz >= 32) {
     const lb = oz / 16;
@@ -97,15 +108,20 @@ function fmtVolume(floz: number): string {
 
 const fmtBase = (n: number, family: Family) => (family === "volume" ? fmtVolume(n) : fmtWeight(n));
 
+// Precision matters more than recall here: a false allergen flag on a chef's
+// sheet costs trust. Plant "milks", nut butters, corn tortillas, rice noodles,
+// gluten-free flours and eggplant are excluded explicitly.
 const ALLERGENS: Record<string, RegExp> = {
-  "milk/dairy": /\b(milk|dairy|butter|cream|cheese|yogurt|buttermilk|ghee|paneer|parmesan|mozzarella)\b/i,
-  egg: /\begg/i,
-  "wheat/gluten": /\b(wheat|flour|bread|breadcrumb|panko|pasta|noodle|tortilla|bun|soy sauce)\b/i,
-  soy: /\b(soy|tofu|edamame|miso|tempeh)\b/i,
-  peanut: /\bpeanut/i,
-  "tree nut": /\b(almond|walnut|pecan|cashew|pistachio|hazelnut|macadamia)\b/i,
-  fish: /\b(fish|salmon|tuna|cod|anchov|halibut)\b/i,
-  shellfish: /\b(shrimp|prawn|crab|lobster|mussel|clam|oyster(?!\s*mushroom)|scallop|squid|calamari)\b/i,
+  "milk/dairy":
+    /\b(?<!coconut |almond |oat |soy |rice |cashew |nut |hemp )milk\b|\bdairy\b|\b(?<!peanut |almond |cocoa |cashew |sunflower |apple |nut |seed )butter\b|\b(?<!coconut |cashew )cream\b(?!\s+of\s+tartar)|\b(cheese|yogurt|buttermilk|ghee|paneer|parmesan|mozzarella|cheddar|feta|ricotta|queso|cotija|whey|casein|mascarpone|burrata|halloumi)\b/i,
+  egg: /\begg(?!plant)s?\b|\bmayonnaise\b|\bmayo\b|\baioli\b|\bhollandaise\b|\bmeringue\b/i,
+  "wheat/gluten":
+    /\bwheat\b|\b(?<!rice |almond |chickpea |corn |coconut |tapioca |oat |buckwheat |potato |cassava |gluten-free )flour\b|\b(?<!rice |gluten-free )bread\b|\bbreadcrumbs?\b|\bpanko\b|\b(?<!rice |glass |sweet potato |soba |buckwheat |shirataki )noodles?\b|\b(?<!rice |gluten-free |chickpea )pasta\b|\b(?<!corn )tortillas?\b|\bbuns?\b|\bsoy sauce\b|\bseitan\b|\bcouscous\b|\bbarley\b|\bfarro\b|\bbulgur\b|\bsemolina\b|\bpita\b|\bnaan\b|\bbaguette\b|\bbrioche\b|\bcroissant\b/i,
+  soy: /\bsoy\b|\bsoya\b|\btofu\b|\bedamame\b|\bmiso\b|\btempeh\b|\btamari\b/i,
+  peanut: /\bpeanuts?\b/i,
+  "tree nut": /\b(almond|walnut|pecan|cashew|pistachio|hazelnut|macadamia|pine nut|brazil nut|chestnut)s?\b/i,
+  fish: /\b(fish|salmon|tuna|cod|anchov\w*|halibut|tilapia|snapper|trout|mahi|sardines?|mackerel|bass|worcestershire)\b/i,
+  shellfish: /\b(shrimp|prawns?|crab|lobster|mussels?|clams?|oyster(?!\s*mushroom)s?|scallops?|squid|calamari|crawfish|crayfish)\b/i,
   sesame: /\b(sesame|tahini)\b/i,
 };
 
@@ -122,7 +138,16 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
   // 1 — Portion integrity: covers x portion size should equal finished yield.
   const p = parseQ(sheet.targetYield.portionSize);
   const f = parseQ(sheet.targetYield.finishedYield);
-  if (p && f && p.family === f.family && p.family !== "count" && covers > 0) {
+  const multi = knownPairs(sheet.targetYield.portionSize) >= 2 || knownPairs(sheet.targetYield.finishedYield) >= 2;
+  if (multi) {
+    // "5 oz pork + 1/2 cup beans" / "45 lb chicken + 30 lb rice": one number
+    // can't stand for the whole plate — leave it to the chef, don't cry wolf.
+    checks.push({
+      label: "Portion integrity",
+      status: "info",
+      detail: "Multi-component portion — verify each component's yield against the pull list.",
+    });
+  } else if (p && f && p.family === f.family && p.family !== "count" && covers > 0) {
     const expected = covers * p.n * p.base;
     const actual = f.n * f.base;
     const ratio = actual / expected;

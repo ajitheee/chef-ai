@@ -20,6 +20,7 @@ type ApiReply = {
   demo?: boolean;
   note?: string;
   result?: { variations?: unknown };
+  ms?: number;
 };
 
 /** Parse an API reply; a platform error page (timeout, crash) becomes one plain sentence, not a JSON parser error. */
@@ -55,6 +56,7 @@ export default function Home() {
   const [sheet, setSheet] = useState<ProductionSheet | null>(null);
   const [demo, setDemo] = useState(false);
   const [engineNote, setEngineNote] = useState("");
+  const [engineMs, setEngineMs] = useState<number | null>(null);
 
   const [refineText, setRefineText] = useState("");
   const [refining, setRefining] = useState(false);
@@ -274,6 +276,7 @@ export default function Home() {
       setSheet(s);
       setDemo(!!data.demo);
       setEngineNote(typeof data.note === "string" ? data.note : "");
+      setEngineMs(typeof data.ms === "number" ? data.ms : null);
       setRefineNote("");
       store().history.add(s.dish, s.targetYield.covers, s).then(setHistory).catch(() => {});
     } catch (e) {
@@ -613,6 +616,12 @@ export default function Home() {
           </p>
         )}
 
+        {sheet && !demo && engineMs != null && (
+          <p className="no-print mt-6 text-right text-[11px] font-semibold uppercase tracking-wide text-[#3A2A1E]/40">
+            ⚡ chef-logic engine · {(engineMs / 1000).toFixed(0)} s
+          </p>
+        )}
+
         {sheet && <Sheet sheet={sheet} prices={prices} />}
 
         {sheet && (
@@ -644,7 +653,7 @@ function LoadingSkeleton() {
           ))}
         </div>
       </div>
-      <p className="mt-3 text-xs font-semibold text-[#3A2A1E]/50">Scaling with chef logic — batching &amp; holding included…</p>
+      <p className="mt-3 text-xs font-semibold text-[#3A2A1E]/50">Scaling with chef logic — batching &amp; holding included… (a long card can take up to a minute)</p>
     </section>
   );
 }

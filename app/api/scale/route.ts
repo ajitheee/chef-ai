@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, sheet: demoSheetFor(input), demo: true });
     }
 
+    const t0 = Date.now();
     try {
       const sheet = await scaleRecipe(input);
-      return NextResponse.json({ ok: true, sheet, demo: false });
+      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0 });
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;
