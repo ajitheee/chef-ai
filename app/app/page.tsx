@@ -473,6 +473,7 @@ export default function Home() {
             </div>
           </div>
 
+          {storeKind !== "supabase" && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-[#3A2A1E]/50">His recipes:</span>
             {PRESETS.map((p) => (
@@ -485,15 +486,22 @@ export default function Home() {
               </button>
             ))}
           </div>
+          )}
 
           {saved.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              {saved.map((r) => (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-[#3A2A1E]/50">{storeKind === "supabase" ? "Your library:" : "Saved:"}</span>
+              {saved.slice(0, 8).map((r) => (
                 <span key={r.id} className="inline-flex items-center gap-1 rounded-full border-2 border-[#3A2A1E]/15 bg-[#FCF3E3] py-1 pl-3 pr-1 text-xs">
                   <button onClick={() => loadSaved(r)} className="font-semibold hover:text-[#C24E33]">{r.name}</button>
                   <button onClick={() => onDelete(r.id)} className="flex h-4 w-4 items-center justify-center rounded-full text-[#3A2A1E]/40 hover:bg-[#3A2A1E]/10 hover:text-[#3A2A1E]" aria-label={`Delete ${r.name}`}>×</button>
                 </span>
               ))}
+              {saved.length > 8 && (
+                <a href="/library" className="rounded-full border-2 border-dashed border-[#3A2A1E]/25 px-3 py-1 text-xs font-bold text-[#3A2A1E]/60 hover:border-[#C24E33] hover:text-[#C24E33]">
+                  +{saved.length - 8} more in library →
+                </a>
+              )}
             </div>
           )}
 
