@@ -123,7 +123,7 @@ export default function Planner() {
                 ))}
               </select>
               <input className={`${inputCls} w-28`} inputMode="numeric" placeholder="covers" value={covers} onChange={(e) => setCovers(e.target.value)} />
-              <button onClick={addRow} className="rounded-full bg-success px-5 py-2.5 text-sm font-bold text-white hover:bg-success-hover">+ Add</button>
+              <button onClick={addRow} className="rounded-full bg-success px-5 py-2.5 text-sm font-bold text-success-ink hover:bg-success-hover">+ Add</button>
             </div>
 
             {rows.length > 0 && (
@@ -140,7 +140,7 @@ export default function Planner() {
               </ul>
             )}
 
-            <button onClick={build} disabled={building || rows.length === 0} className="mt-5 w-full rounded-full bg-accent px-4 py-3.5 text-sm font-bold text-white shadow-sm transition disabled:opacity-50 disabled:shadow-none">
+            <button onClick={build} disabled={building || rows.length === 0} className="mt-5 w-full rounded-full bg-accent px-4 py-3.5 text-sm font-bold text-accent-ink shadow-sm transition disabled:opacity-50 disabled:shadow-none">
               {building ? "Building plan…" : "Build production plan →"}
             </button>
             {error && <p className="mt-3 rounded-xl border border-danger bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
@@ -171,7 +171,7 @@ export default function Planner() {
               {consolidated.map((c, i) => (
                 <li key={i} className="flex justify-between border-b border-line py-1">
                   <span className="font-semibold">{c.item}</span>
-                  <span className="text-accent">{c.qty}</span>
+                  <span className="font-semibold">{c.qty}</span>
                 </li>
               ))}
             </ul>

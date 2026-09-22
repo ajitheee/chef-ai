@@ -130,7 +130,7 @@ export default function LoginPage() {
             <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} placeholder="Password" />
             {error && <p className="mt-2 text-sm font-semibold text-danger">{error}</p>}
             {note && <p className="mt-2 text-sm font-semibold text-success">{note}</p>}
-            <button disabled={busy || !email || !password} className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-bold text-white shadow-sm disabled:opacity-50">
+            <button disabled={busy || !email || !password} className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
               {busy ? "Working…" : "Sign in →"}
             </button>
             <div className="mt-3 flex flex-wrap gap-2">

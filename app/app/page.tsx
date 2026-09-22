@@ -405,7 +405,7 @@ export default function Home() {
             </p>
             <div className="mt-3 flex gap-2">
               <input className={inputCls} placeholder="Add a correction…" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddNote(); }} />
-              <button onClick={onAddNote} className="whitespace-nowrap rounded-full bg-success px-4 py-2.5 text-sm font-bold text-white hover:bg-success-hover">Add</button>
+              <button onClick={onAddNote} className="whitespace-nowrap rounded-full bg-success px-4 py-2.5 text-sm font-bold text-success-ink hover:bg-success-hover">Add</button>
             </div>
             {kitchen.length > 0 && (
               <ul className="mt-3 space-y-1.5">
@@ -428,7 +428,7 @@ export default function Home() {
               <input className={inputCls} placeholder="Ingredient" value={pName} onChange={(e) => setPName(e.target.value)} />
               <input className={inputCls} placeholder="unit" value={pUnit} onChange={(e) => setPUnit(e.target.value)} />
               <input className={inputCls} inputMode="decimal" placeholder="$/unit" value={pPrice} onChange={(e) => setPPrice(e.target.value)} />
-              <button onClick={onAddPrice} className="rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover">Add</button>
+              <button onClick={onAddPrice} className="rounded-lg bg-accent px-4 text-sm font-semibold text-accent-ink hover:bg-accent-hover">Add</button>
             </div>
             {prices.length > 0 && (
               <ul className="mt-3 space-y-1">
@@ -545,7 +545,7 @@ export default function Home() {
             ))}
           </div>
 
-          <button onClick={onScale} disabled={loading} className="mt-4 w-full rounded-lg bg-accent px-4 py-4 text-base font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
+          <button onClick={onScale} disabled={loading} className="mt-4 w-full rounded-lg bg-accent px-4 py-4 text-base font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50">
             {loading ? "Scaling…" : "Scale recipe →"}
           </button>
 
@@ -567,7 +567,7 @@ export default function Home() {
                     </div>
                   )}
                   <p className="mt-2 flex-1 text-xs text-ink-2">{v.summary}</p>
-                  <button onClick={() => useVariation(v)} className="mt-3 rounded-full bg-success px-3 py-1.5 text-xs font-bold text-white hover:bg-success-hover">
+                  <button onClick={() => useVariation(v)} className="mt-3 rounded-full bg-success px-3 py-1.5 text-xs font-bold text-success-ink hover:bg-success-hover">
                     Use this →
                   </button>
                 </div>
@@ -624,7 +624,7 @@ export default function Home() {
             <label className=" mb-1.5 block text-base font-semibold">Refine this sheet</label>
             <div className="flex gap-2">
               <input className={inputCls} placeholder='e.g. "drop to 400 covers" · "make it vegetarian" · "less spicy"' value={refineText} onChange={(e) => setRefineText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onRefine(); }} />
-              <button onClick={onRefine} disabled={refining || !refineText.trim()} className="whitespace-nowrap rounded-full bg-success px-5 py-2.5 text-sm font-bold text-white hover:bg-success-hover disabled:opacity-50">
+              <button onClick={onRefine} disabled={refining || !refineText.trim()} className="whitespace-nowrap rounded-full bg-success px-5 py-2.5 text-sm font-bold text-success-ink hover:bg-success-hover disabled:opacity-50">
                 {refining ? "Updating…" : "Update"}
               </button>
             </div>
@@ -794,7 +794,7 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
             {sheet.ingredients.map((ing, i) => (
               <tr key={i} className="border-b border-line align-top">
                 <td className="break-words py-2 pr-3 font-semibold">{ing.item}</td>
-                <td className="break-words py-2 pr-3 text-accent">{ing.scaledQty}</td>
+                <td className="break-words py-2 pr-3 font-semibold">{ing.scaledQty}</td>
                 <td className="break-words py-2 pr-3 text-ink-3">{ing.multiplier}</td>
                 <td className="break-words py-2 text-ink-2">{ing.note}</td>
               </tr>
@@ -809,7 +809,7 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
           <li key={i} className="rounded-lg border border-line bg-bg p-3">
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-semibold">{ing.item}</span>
-              <span className="whitespace-nowrap font-bold text-accent">{ing.scaledQty}</span>
+              <span className="whitespace-nowrap font-bold">{ing.scaledQty}</span>
             </div>
             {(ing.multiplier || ing.note) && (
               <p className="mt-1 text-xs text-ink-3">

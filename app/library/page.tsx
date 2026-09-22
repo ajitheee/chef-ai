@@ -30,7 +30,7 @@ export default async function LibraryPage() {
                 Your standardized recipes. Tap one to open it, then scale it to today&apos;s covers.
               </p>
             </div>
-            <Link href="/library/new" className={`${chip} border-accent bg-accent text-white hover:bg-accent-hover`}>
+            <Link href="/library/new" className={`${chip} border-accent bg-accent text-accent-ink hover:bg-accent-hover`}>
               + New recipe
             </Link>
           </div>

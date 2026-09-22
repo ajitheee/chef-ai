@@ -77,7 +77,7 @@ export default async function NewRecipePage({
             </div>
           </div>
 
-          <button className="mt-5 w-full rounded-full bg-accent px-4 py-3.5 text-sm font-bold text-white shadow-sm transition">
+          <button className="mt-5 w-full rounded-full bg-accent px-4 py-3.5 text-sm font-bold text-accent-ink shadow-sm transition">
             Save to library →
           </button>
         </form>

@@ -1,30 +1,69 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* ---------- Design tokens: "kitchen tablet" — calm, high-contrast, slate-blue accent ---------- */
+/* ---------- Design tokens ----------
+   Base look = "B · slate & copper". The candidate looks A/C/D below override the same
+   variables under html[data-theme=…] so they can be compared on the real screens
+   (components/ThemePicker.tsx). Once one is chosen: make it the base, delete the rest. */
 @theme {
-  --color-bg: #f3f5f8;          /* page */
+  --color-bg: #eef1f5;          /* page */
   --color-card: #ffffff;        /* panels */
-  --color-bar: #0f172a;         /* dark header bar */
-  --color-bar-2: #1e293b;       /* bar hover / secondary */
-  --color-ink: #0f172a;         /* primary text */
-  --color-ink-2: #475569;       /* secondary text */
-  --color-ink-3: #8794a6;       /* muted text */
-  --color-line: #e2e8f0;        /* hairlines */
-  --color-line-2: #cbd5e1;      /* stronger lines */
-  --color-accent: #3b6fb6;      /* slate blue */
-  --color-accent-hover: #2f5a96;
-  --color-accent-soft: #e7eff9;
+  --color-bar: #0b1220;         /* header bar */
+  --color-bar-2: #1a2333;       /* bar edge / secondary */
+  --color-bar-ink: #eef1f5;     /* text on the bar */
+  --color-ink: #0b1220;         /* primary text */
+  --color-ink-2: #4b5563;       /* secondary text */
+  --color-ink-3: #8b95a5;       /* muted text */
+  --color-line: #e3e7ee;        /* hairlines */
+  --color-line-2: #ccd3dd;      /* stronger lines */
+  --color-accent: #c2410c;      /* copper — the one action color */
+  --color-accent-hover: #9a3412;
+  --color-accent-soft: #fdeee5;
+  --color-accent-ink: #ffffff;  /* text on accent */
   --color-success: #15803d;
   --color-success-hover: #166534;
   --color-success-soft: #dcfce7;
-  --color-warn: #b45309;
-  --color-warn-hover: #92400e;
-  --color-warn-soft: #fef3c7;
+  --color-success-ink: #ffffff;
+  --color-warn: #a16207;
+  --color-warn-hover: #854d0e;
+  --color-warn-soft: #fef9c3;
   --color-danger: #b91c1c;
   --color-danger-soft: #fee2e2;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
+/* A · Chef's whites & teal — warm off-white, charcoal bar, deep teal action */
+html[data-theme="whites"] {
+  --color-bg: #f4f3ee; --color-card: #ffffff; --color-bar: #1f2933; --color-bar-2: #323f4b; --color-bar-ink: #f4f3ee;
+  --color-ink: #1f2933; --color-ink-2: #52606d; --color-ink-3: #7b8794; --color-line: #e4e1d8; --color-line-2: #cfcabd;
+  --color-accent: #0f766e; --color-accent-hover: #115e59; --color-accent-soft: #e0f2f0; --color-accent-ink: #ffffff;
+  --color-success: #15803d; --color-success-hover: #166534; --color-success-soft: #dcfce7; --color-success-ink: #ffffff;
+  --color-warn: #b45309; --color-warn-hover: #92400e; --color-warn-soft: #fef3c7;
+  --color-danger: #b91c1c; --color-danger-soft: #fee2e2;
+}
+
+/* C · Night kitchen — dark surfaces like a kitchen display screen, green go, amber warnings */
+html[data-theme="night"] {
+  color-scheme: dark;
+  --color-bg: #0f1115; --color-card: #171a21; --color-bar: #171a21; --color-bar-2: #2a2f3a; --color-bar-ink: #e6e8ec;
+  --color-ink: #e6e8ec; --color-ink-2: #a3aab8; --color-ink-3: #737b8a; --color-line: #262b36; --color-line-2: #343a48;
+  --color-accent: #22c55e; --color-accent-hover: #4ade80; --color-accent-soft: #14301f; --color-accent-ink: #06120a;
+  --color-success: #22c55e; --color-success-hover: #4ade80; --color-success-soft: #14301f; --color-success-ink: #06120a;
+  --color-warn: #f59e0b; --color-warn-hover: #fbbf24; --color-warn-soft: #3a2a08;
+  --color-danger: #f87171; --color-danger-soft: #3b1313;
+}
+
+/* D · Paper & red pencil — a printed prep sheet marked up in red; square corners */
+html[data-theme="paper"] {
+  --color-bg: #fbf8f3; --color-card: #ffffff; --color-bar: #fbf8f3; --color-bar-2: #1a1a1a; --color-bar-ink: #1a1a1a;
+  --color-ink: #1a1a1a; --color-ink-2: #4a4a4a; --color-ink-3: #7a7a7a; --color-line: #d9d4c7; --color-line-2: #1a1a1a;
+  --color-accent: #1a1a1a; --color-accent-hover: #000000; --color-accent-soft: #efe9dc; --color-accent-ink: #fbf8f3;
+  --color-success: #1a1a1a; --color-success-hover: #000000; --color-success-soft: #efe9dc; --color-success-ink: #fbf8f3;
+  --color-warn: #b91c1c; --color-warn-hover: #991b1b; --color-warn-soft: #fde8e8;
+  --color-danger: #b91c1c; --color-danger-soft: #fde8e8;
+  --radius-sm: 2px; --radius-md: 2px; --radius-lg: 3px; --radius-xl: 4px; --radius-2xl: 6px;
+}
+html[data-theme="paper"] .rounded-full { border-radius: 3px; }
 
 :root {
   color-scheme: light;
@@ -51,6 +90,13 @@ input, textarea, select, button { font: inherit; }
 /* Print only the production sheet — hide the form, header, and buttons. */
 @media print {
   .no-print { display: none !important; }
+  /* Paper is always light, whatever look is on screen. */
+  html, html[data-theme] {
+    color-scheme: light;
+    --color-bg: #ffffff; --color-card: #ffffff; --color-ink: #000000; --color-ink-2: #333333; --color-ink-3: #666666;
+    --color-line: #cccccc; --color-line-2: #999999;
+    --color-accent-soft: #f2f2f2; --color-success-soft: #f2f2f2; --color-warn-soft: #f2f2f2; --color-danger-soft: #f2f2f2;
+  }
   body { background: #ffffff; }
   main { max-width: 100% !important; padding: 0 !important; }
   .sheet-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
