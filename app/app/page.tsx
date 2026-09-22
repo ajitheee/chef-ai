@@ -12,6 +12,7 @@ import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind }
 import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutrition";
 import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/ops";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { TopBar } from "@/components/TopBar";
 
 type ApiReply = {
   ok?: boolean;
@@ -357,75 +358,61 @@ export default function Home() {
     setError("");
   }
 
-  const label = "block text-sm font-semibold text-[#3A2A1E]/70 mb-1";
+  const label = "block text-sm font-semibold text-ink-2 mb-1";
   const inputCls =
-    "w-full rounded-xl border-2 border-[#3A2A1E]/20 bg-[#FFFBF2] px-3 py-2.5 text-base text-[#3A2A1E] placeholder:text-[#3A2A1E]/35 focus:border-[#C24E33] focus:outline-none";
-  const chipBtn = "rounded-full border-2 px-3.5 py-1.5 text-xs font-bold";
+    "w-full rounded-lg border border-line-2 bg-card px-3.5 py-3 text-lg text-ink placeholder:text-ink-3 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20";
+  const chipBtn = "rounded-lg border px-4 py-2 text-sm font-semibold";
 
   return (
-    <div className="font-techno relative min-h-screen bg-[#FCF3E3] text-[#3A2A1E]">
-      <div className="noise pointer-events-none fixed inset-0 z-[60] opacity-[0.04] mix-blend-multiply no-print" aria-hidden />
+    <div className="min-h-screen bg-bg text-ink">
+      <TopBar active="scaler" signOut={isSupabaseConfigured()} />
 
-      <main className="relative z-10 mx-auto max-w-3xl px-4 py-8">
-        <header className="mb-6 no-print">
-          <div className="mb-2 flex items-center gap-4">
-            <a href="/" className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">← Home</a>
-            <a href="/library" className="text-xs font-bold uppercase tracking-wide text-[#51613A] hover:text-[#3f4d2d]">Recipe library →</a>
-            <a href="/app/planner" className="text-xs font-bold uppercase tracking-wide text-[#51613A] hover:text-[#3f4d2d]">Cycle-menu planner →</a>
-            {isSupabaseConfigured() && (
-              <form action="/auth/signout" method="post" className="ml-auto">
-                <button className="text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45 hover:text-[#C24E33]">Sign out</button>
-              </form>
-            )}
-          </div>
-          <h1 className="font-display text-3xl font-semibold">
-            Digital Chef AI <span className="text-[#C24E33]">· Production Scaler</span>
-          </h1>
-          <p className="mt-1 text-sm text-[#3A2A1E]/65">
-            Scale a standardized recipe to today&apos;s covers — the way a chef would.
-          </p>
-        </header>
+      <main className="mx-auto max-w-4xl px-4 py-6">
+        <div className="no-print mb-5">
+          <h1 className="text-2xl font-semibold tracking-tight">Production scaler</h1>
+          <p className="mt-1 text-sm text-ink-2">Scale a standardized recipe to today&apos;s covers — the way a chef would.</p>
+        </div>
 
         {/* Kitchen memory + Prices + Data toolbar */}
         <div className="no-print mb-4 flex flex-wrap items-center gap-2">
-          <button onClick={() => setShowKitchen((s) => !s)} className={`${chipBtn} border-[#51613A] ${showKitchen ? "bg-[#51613A]/20" : ""} text-[#51613A] hover:bg-[#51613A]/15`}>
-            🧠 Kitchen memory ({kitchen.length})
+          <button onClick={() => setShowKitchen((s) => !s)} className={`${chipBtn} ${showKitchen ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-2 hover:bg-card"}`}>
+            Kitchen memory ({kitchen.length})
           </button>
-          <button onClick={() => setShowPrices((s) => !s)} className={`${chipBtn} border-[#E9A93C] ${showPrices ? "bg-[#E9A93C]/30" : ""} text-[#8a5a12] hover:bg-[#E9A93C]/25`}>
-            💲 Prices ({prices.length})
+          <button onClick={() => setShowPrices((s) => !s)} className={`${chipBtn} ${showPrices ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-2 hover:bg-card"}`}>
+            Prices ({prices.length})
           </button>
-          <span className="mx-1 hidden h-5 w-px bg-[#3A2A1E]/15 sm:block" aria-hidden />
-          <button onClick={() => downloadBackup(store()).catch(() => setDataNote("Couldn't build the backup."))} title="Save all your recipes, prices and notes to a file" className={`${chipBtn} border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
-            ⬇ Backup
+          <span className="mx-1 hidden h-5 w-px bg-line-2 sm:block" aria-hidden />
+          <button onClick={() => downloadBackup(store()).catch(() => setDataNote("Couldn't build the backup."))} title="Save all your recipes, prices and notes to a file" className={`${chipBtn} border-line text-ink-2 hover:bg-bg`}>
+            Backup
           </button>
-          <label title="Restore from a backup file (merges — nothing is deleted)" className={`${chipBtn} cursor-pointer border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
-            ⬆ Restore
+          <label title="Restore from a backup file (merges — nothing is deleted)" className={`${chipBtn} cursor-pointer border-line text-ink-2 hover:bg-bg`}>
+            Restore
             <input type="file" accept="application/json,.json" className="hidden" onChange={onRestoreFile} />
           </label>
         </div>
 
         {dataNote && (
-          <p className="no-print mb-4 rounded-xl border-2 border-[#51613A]/30 bg-[#51613A]/10 px-3 py-2 text-xs font-semibold text-[#51613A]">
+          <p className="no-print mb-4 rounded-xl border border-success bg-success-soft px-3 py-2 text-xs font-semibold text-success">
             {dataNote}
           </p>
         )}
 
         {showKitchen && (
-          <section className="no-print mb-4 rounded-3xl border-2 border-[#51613A] bg-[#FFFBF2] p-4 shadow-[0_6px_0_0_#3A2A1E]">
-            <h3 className="font-display text-base font-semibold text-[#51613A]">🧠 Kitchen memory — the learning loop</h3>
-            <p className="mt-0.5 text-xs text-[#3A2A1E]/60">
+          <section className="no-print mb-4 rounded-xl border border-line bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-ink">Kitchen memory — the learning loop</h3>
+            <p className="mt-0.5 text-xs text-ink-2">
               Corrections about YOUR kitchen, applied to every scale. e.g. &quot;my combi yields 48%, not 45%&quot; · &quot;use 10 oz garlic at 800, not 12&quot;.
             </p>
             <div className="mt-3 flex gap-2">
               <input className={inputCls} placeholder="Add a correction…" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddNote(); }} />
-              <button onClick={onAddNote} className="whitespace-nowrap rounded-full bg-[#51613A] px-4 py-2.5 text-sm font-bold text-[#FCF3E3] hover:bg-[#3f4d2d]">Add</button>
+              <button onClick={onAddNote} className="whitespace-nowrap rounded-full bg-success px-4 py-2.5 text-sm font-bold text-white hover:bg-success-hover">Add</button>
             </div>
             {kitchen.length > 0 && (
               <ul className="mt-3 space-y-1.5">
                 {kitchen.map((n) => (
-                  <li key={n.id} className="flex items-start justify-between gap-2 rounded-xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] px-3 py-2 text-sm">
+                  <li key={n.id} className="flex items-start justify-between gap-2 rounded-xl border border-line bg-bg px-3 py-2 text-sm">
                     <span>{n.text}</span>
-                    <button onClick={() => store().notes.remove(n.id).then(setKitchen).catch(() => {})} className="shrink-0 text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
+                    <button onClick={() => store().notes.remove(n.id).then(setKitchen).catch(() => {})} className="shrink-0 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
                   </li>
                 ))}
               </ul>
@@ -434,21 +421,21 @@ export default function Home() {
         )}
 
         {showPrices && (
-          <section className="no-print mb-4 rounded-3xl border-2 border-[#E9A93C] bg-[#FFFBF2] p-4 shadow-[0_6px_0_0_#3A2A1E]">
-            <h3 className="font-display text-base font-semibold text-[#8a5a12]">💲 Price list — real food cost</h3>
-            <p className="mt-0.5 text-xs text-[#3A2A1E]/60">Your supplier prices, used to estimate food cost on each sheet. (Approximate — verify units.)</p>
+          <section className="no-print mb-4 rounded-xl border border-line bg-card p-4 shadow-sm">
+            <h3 className="text-base font-semibold text-ink">Price list — real food cost</h3>
+            <p className="mt-0.5 text-xs text-ink-2">Your supplier prices, used to estimate food cost on each sheet. (Approximate — verify units.)</p>
             <div className="mt-3 grid grid-cols-[1fr_4rem_4.5rem_auto] gap-2">
               <input className={inputCls} placeholder="Ingredient" value={pName} onChange={(e) => setPName(e.target.value)} />
               <input className={inputCls} placeholder="unit" value={pUnit} onChange={(e) => setPUnit(e.target.value)} />
               <input className={inputCls} inputMode="decimal" placeholder="$/unit" value={pPrice} onChange={(e) => setPPrice(e.target.value)} />
-              <button onClick={onAddPrice} className="rounded-full bg-[#E9A93C] px-4 text-sm font-bold text-[#3A2A1E] hover:bg-[#d99a2d]">Add</button>
+              <button onClick={onAddPrice} className="rounded-lg bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover">Add</button>
             </div>
             {prices.length > 0 && (
               <ul className="mt-3 space-y-1">
                 {prices.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between rounded-xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] px-3 py-1.5 text-sm">
+                  <li key={p.id} className="flex items-center justify-between rounded-xl border border-line bg-bg px-3 py-1.5 text-sm">
                     <span><span className="font-semibold">{p.name}</span> — ${p.price.toFixed(2)} / {p.unit}</span>
-                    <button onClick={() => store().prices.remove(p.id).then(setPrices).catch(() => {})} className="text-[#3A2A1E]/40 hover:text-[#B0392A]" aria-label="Remove">×</button>
+                    <button onClick={() => store().prices.remove(p.id).then(setPrices).catch(() => {})} className="text-ink-3 hover:text-danger" aria-label="Remove">×</button>
                   </li>
                 ))}
               </ul>
@@ -457,17 +444,17 @@ export default function Home() {
         )}
 
         {/* Input card */}
-        <section className="no-print rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-5 shadow-[0_10px_0_0_#3A2A1E]">
+        <section className="no-print rounded-xl border border-line-2 bg-card p-5 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-semibold">Recipe</h2>
+            <h2 className=" text-lg font-semibold">Recipe</h2>
             <div className="flex flex-wrap justify-end gap-2">
-              <button onClick={onVariations} disabled={varLoading} className={`${chipBtn} border-[#E9A93C] bg-[#E9A93C]/30 text-[#8a5a12] hover:bg-[#E9A93C]/50 disabled:opacity-50`}>
-                {varLoading ? "Thinking…" : "💡 Variations"}
+              <button onClick={onVariations} disabled={varLoading} className={`${chipBtn} border-line text-ink-2 hover:bg-bg disabled:opacity-50`}>
+                {varLoading ? "Thinking…" : "Variations"}
               </button>
-              <button onClick={onSave} className={`${chipBtn} border-[#51613A] bg-[#51613A]/12 text-[#51613A] hover:bg-[#51613A]/20`}>
+              <button onClick={onSave} className={`${chipBtn} border-line text-ink-2 hover:bg-bg`}>
                 {storeKind === "supabase" ? "Save to library" : "Save recipe"}
               </button>
-              <button onClick={loadSample} className={`${chipBtn} border-[#3A2A1E]/25 text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5`}>
+              <button onClick={loadSample} className={`${chipBtn} border-line text-ink-2 hover:bg-bg`}>
                 Load sample
               </button>
             </div>
@@ -475,12 +462,12 @@ export default function Home() {
 
           {storeKind !== "supabase" && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-[#3A2A1E]/50">His recipes:</span>
+            <span className="text-xs font-semibold text-ink-3">His recipes:</span>
             {PRESETS.map((p) => (
               <button
                 key={p.name}
                 onClick={() => loadPreset(p)}
-                className="rounded-full border-2 border-[#C24E33]/40 bg-[#C24E33]/8 px-3 py-1 text-xs font-bold text-[#C24E33] hover:bg-[#C24E33]/15"
+                className="rounded-md border border-accent/40 bg-accent-soft px-3 py-1.5 text-sm font-medium text-accent hover:border-accent"
               >
                 {p.name}
               </button>
@@ -490,15 +477,15 @@ export default function Home() {
 
           {saved.length > 0 && (
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-[#3A2A1E]/50">{storeKind === "supabase" ? "Your library:" : "Saved:"}</span>
+              <span className="text-xs font-semibold text-ink-3">{storeKind === "supabase" ? "Your library:" : "Saved:"}</span>
               {saved.slice(0, 8).map((r) => (
-                <span key={r.id} className="inline-flex items-center gap-1 rounded-full border-2 border-[#3A2A1E]/15 bg-[#FCF3E3] py-1 pl-3 pr-1 text-xs">
-                  <button onClick={() => loadSaved(r)} className="font-semibold hover:text-[#C24E33]">{r.name}</button>
-                  <button onClick={() => onDelete(r.id)} className="flex h-4 w-4 items-center justify-center rounded-full text-[#3A2A1E]/40 hover:bg-[#3A2A1E]/10 hover:text-[#3A2A1E]" aria-label={`Delete ${r.name}`}>×</button>
+                <span key={r.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-bg py-1 pl-3 pr-1 text-xs">
+                  <button onClick={() => loadSaved(r)} className="font-semibold hover:text-accent">{r.name}</button>
+                  <button onClick={() => onDelete(r.id)} className="flex h-4 w-4 items-center justify-center rounded-full text-ink-3 hover:bg-bg hover:text-ink" aria-label={`Delete ${r.name}`}>×</button>
                 </span>
               ))}
               {saved.length > 8 && (
-                <a href="/library" className="rounded-full border-2 border-dashed border-[#3A2A1E]/25 px-3 py-1 text-xs font-bold text-[#3A2A1E]/60 hover:border-[#C24E33] hover:text-[#C24E33]">
+                <a href="/library" className="rounded-full border border-dashed border-line px-3 py-1 text-xs font-bold text-ink-2 hover:border-accent hover:text-accent">
                   +{saved.length - 8} more in library →
                 </a>
               )}
@@ -510,14 +497,14 @@ export default function Home() {
           <textarea className={`${inputCls} h-40 font-mono-ui`} placeholder="Paste a standardized recipe here... (or add a photo below)" value={recipeText} onChange={(e) => setRecipeText(e.target.value)} />
 
           <div className="mt-2 flex items-center gap-3">
-            <label className="cursor-pointer rounded-full border-2 border-[#3A2A1E]/25 px-3.5 py-1.5 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5">
-              📷 Add photo of a recipe
+            <label className="cursor-pointer rounded-full border border-line px-3.5 py-1.5 text-xs font-bold text-ink-2 hover:bg-bg">
+              Add photo of a recipe
               <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onFile} />
             </label>
             {imageName && (
-              <span className="inline-flex items-center gap-1 text-xs text-[#3A2A1E]/70">
+              <span className="inline-flex items-center gap-1 text-xs text-ink-2">
                 {imageName}
-                <button onClick={clearImage} className="flex h-4 w-4 items-center justify-center rounded-full text-[#3A2A1E]/40 hover:bg-[#3A2A1E]/10 hover:text-[#3A2A1E]" aria-label="Remove photo">×</button>
+                <button onClick={clearImage} className="flex h-4 w-4 items-center justify-center rounded-full text-ink-3 hover:bg-bg hover:text-ink" aria-label="Remove photo">×</button>
               </span>
             )}
           </div>
@@ -546,41 +533,41 @@ export default function Home() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-[#3A2A1E]/50">Quick count:</span>
+            <span className="text-xs font-semibold text-ink-3">Quick count:</span>
             {[100, 200, 400, 800, 1200].map((c) => (
               <button
                 key={c}
                 onClick={() => setTargetCovers(String(c))}
-                className={`rounded-full border-2 px-3 py-1 text-xs font-bold ${targetCovers === String(c) ? "border-[#C24E33] bg-[#C24E33]/15 text-[#C24E33]" : "border-[#3A2A1E]/20 text-[#3A2A1E]/60 hover:bg-[#3A2A1E]/5"}`}
+                className={`rounded-md border px-3.5 py-1.5 text-sm font-medium ${targetCovers === String(c) ? "border-accent bg-accent-soft text-accent" : "border-line text-ink-2 hover:bg-bg"}`}
               >
                 {c}
               </button>
             ))}
           </div>
 
-          <button onClick={onScale} disabled={loading} className="mt-4 w-full rounded-full bg-[#C24E33] px-4 py-3.5 text-sm font-bold text-[#FCF3E3] shadow-[0_6px_0_0_#A33E27] transition hover:translate-y-0.5 hover:shadow-[0_3px_0_0_#A33E27] disabled:opacity-50 disabled:shadow-none">
+          <button onClick={onScale} disabled={loading} className="mt-4 w-full rounded-lg bg-accent px-4 py-4 text-base font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
             {loading ? "Scaling…" : "Scale recipe →"}
           </button>
 
-          {error && <p className="mt-3 rounded-xl border-2 border-[#B0392A]/30 bg-[#B0392A]/10 px-3 py-2 text-sm font-semibold text-[#B0392A]">{error}</p>}
+          {error && <p className="mt-3 rounded-xl border border-danger bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
         </section>
 
         {variations.length > 0 && (
-          <section className="no-print mt-4 rounded-3xl border-2 border-[#E9A93C] bg-[#FFFBF2] p-5 shadow-[0_8px_0_0_#3A2A1E]">
-            <h3 className="font-display mb-3 text-lg font-semibold text-[#8a5a12]">💡 Variations — pick one to scale</h3>
+          <section className="no-print mt-4 rounded-xl border border-line bg-card p-5 shadow-sm">
+            <h3 className="mb-3 text-lg font-semibold text-ink">Variations — pick one to scale</h3>
             <div className="grid gap-3 sm:grid-cols-3">
               {variations.map((v, i) => (
-                <div key={i} className="flex flex-col rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FCF3E3] p-3">
-                  <div className="font-display font-semibold">{v.name}</div>
+                <div key={i} className="flex flex-col rounded-lg border border-line bg-bg p-3">
+                  <div className=" font-semibold">{v.name}</div>
                   {v.tags && v.tags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {v.tags.map((t, j) => (
-                        <span key={j} className="rounded-full bg-[#E9A93C]/30 px-2 py-0.5 text-[11px] font-semibold text-[#8a5a12]">{t}</span>
+                        <span key={j} className="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-semibold text-warn">{t}</span>
                       ))}
                     </div>
                   )}
-                  <p className="mt-2 flex-1 text-xs text-[#3A2A1E]/65">{v.summary}</p>
-                  <button onClick={() => useVariation(v)} className="mt-3 rounded-full bg-[#51613A] px-3 py-1.5 text-xs font-bold text-[#FCF3E3] hover:bg-[#3f4d2d]">
+                  <p className="mt-2 flex-1 text-xs text-ink-2">{v.summary}</p>
+                  <button onClick={() => useVariation(v)} className="mt-3 rounded-full bg-success px-3 py-1.5 text-xs font-bold text-white hover:bg-success-hover">
                     Use this →
                   </button>
                 </div>
@@ -591,14 +578,14 @@ export default function Home() {
 
         {history.length > 0 && !loading && (
           <section className="no-print mt-4">
-            <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45">Recent sheets</h3>
+            <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-ink-3">Recent sheets</h3>
             <div className="flex flex-wrap gap-2">
               {history.map((h) => (
-                <span key={h.id} className="inline-flex items-center gap-1 rounded-full border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] py-1 pl-3 pr-1 text-xs">
-                  <button onClick={() => loadHistoryEntry(h)} className="hover:text-[#C24E33]">
-                    <span className="font-semibold">{h.dish}</span> · {h.covers} covers · <span className="text-[#3A2A1E]/45">{h.savedAt}</span>
+                <span key={h.id} className="inline-flex items-center gap-1 rounded-full border border-line bg-card py-1 pl-3 pr-1 text-xs">
+                  <button onClick={() => loadHistoryEntry(h)} className="hover:text-accent">
+                    <span className="font-semibold">{h.dish}</span> · {h.covers} covers · <span className="text-ink-3">{h.savedAt}</span>
                   </button>
-                  <button onClick={() => store().history.remove(h.id).then(setHistory).catch(() => {})} className="flex h-4 w-4 items-center justify-center rounded-full text-[#3A2A1E]/40 hover:bg-[#3A2A1E]/10 hover:text-[#3A2A1E]" aria-label={`Delete ${h.dish}`}>×</button>
+                  <button onClick={() => store().history.remove(h.id).then(setHistory).catch(() => {})} className="flex h-4 w-4 items-center justify-center rounded-full text-ink-3 hover:bg-bg hover:text-ink" aria-label={`Delete ${h.dish}`}>×</button>
                 </span>
               ))}
             </div>
@@ -609,14 +596,14 @@ export default function Home() {
         {!loading && !sheet && !recipeText.trim() && !imageData && <FirstRunHint />}
 
         {sheet && demo && (
-          <p className="no-print mt-6 rounded-2xl border-2 border-[#E9A93C] bg-[#E9A93C]/15 px-4 py-3 text-sm text-[#3A2A1E]">
+          <p className="no-print mt-6 rounded-lg border border-warn bg-warn-soft px-4 py-3 text-sm text-ink">
             {engineNote ? (
               <>
-                ⚠ <span className="font-bold">Built-in estimate</span> — {engineNote}
+                <span className="font-bold">Built-in estimate</span> — {engineNote}
               </>
             ) : (
               <>
-                🧪 <span className="font-bold">Demo preview</span> — a rough linear+dampening estimate for{" "}
+                <span className="font-bold">Demo preview</span> — a rough linear+dampening estimate for{" "}
                 <span className="font-bold">{sheet.dish}</span> (no AI yet). Add the API key to unlock the full
                 chef-logic engine on <span className="font-bold">any</span> recipe.
               </>
@@ -625,23 +612,23 @@ export default function Home() {
         )}
 
         {sheet && !demo && engineMs != null && (
-          <p className="no-print mt-6 text-right text-[11px] font-semibold uppercase tracking-wide text-[#3A2A1E]/40">
-            ⚡ chef-logic engine · {(engineMs / 1000).toFixed(0)} s
+          <p className="no-print mt-6 text-right text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+            chef-logic engine · {(engineMs / 1000).toFixed(0)} s
           </p>
         )}
 
         {sheet && <Sheet sheet={sheet} prices={prices} />}
 
         {sheet && (
-          <section className="no-print mt-3 rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-4 shadow-[0_8px_0_0_#3A2A1E]">
-            <label className="font-display mb-1.5 block text-base font-semibold">Refine this sheet</label>
+          <section className="no-print mt-3 rounded-xl border border-line-2 bg-card p-4 shadow-sm">
+            <label className=" mb-1.5 block text-base font-semibold">Refine this sheet</label>
             <div className="flex gap-2">
               <input className={inputCls} placeholder='e.g. "drop to 400 covers" · "make it vegetarian" · "less spicy"' value={refineText} onChange={(e) => setRefineText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onRefine(); }} />
-              <button onClick={onRefine} disabled={refining || !refineText.trim()} className="whitespace-nowrap rounded-full bg-[#51613A] px-5 py-2.5 text-sm font-bold text-[#FCF3E3] hover:bg-[#3f4d2d] disabled:opacity-50">
+              <button onClick={onRefine} disabled={refining || !refineText.trim()} className="whitespace-nowrap rounded-full bg-success px-5 py-2.5 text-sm font-bold text-white hover:bg-success-hover disabled:opacity-50">
                 {refining ? "Updating…" : "Update"}
               </button>
             </div>
-            {refineNote && <p className="mt-2 rounded-xl bg-[#E9A93C]/20 px-3 py-2 text-sm text-[#3A2A1E]">{refineNote}</p>}
+            {refineNote && <p className="mt-2 rounded-xl bg-warn-soft px-3 py-2 text-sm text-ink">{refineNote}</p>}
           </section>
         )}
       </main>
@@ -651,25 +638,25 @@ export default function Home() {
 
 function LoadingSkeleton() {
   return (
-    <section className="mt-6 rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-5 shadow-[0_8px_0_0_#3A2A1E]">
+    <section className="mt-6 rounded-xl border border-line-2 bg-card p-5 shadow-sm">
       <div className="animate-pulse space-y-3">
-        <div className="h-6 w-1/3 rounded-full bg-[#C24E33]/20" />
-        <div className="h-3 w-2/3 rounded-full bg-[#3A2A1E]/10" />
+        <div className="h-6 w-1/3 rounded-full bg-accent-soft" />
+        <div className="h-3 w-2/3 rounded-full bg-bg" />
         <div className="mt-4 space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-3 w-full rounded-full bg-[#3A2A1E]/10" />
+            <div key={i} className="h-3 w-full rounded-full bg-bg" />
           ))}
         </div>
       </div>
-      <p className="mt-3 text-xs font-semibold text-[#3A2A1E]/50">Scaling with chef logic — batching &amp; holding included… (a long card can take up to a minute)</p>
+      <p className="mt-3 text-xs font-semibold text-ink-3">Scaling with chef logic — batching &amp; holding included… (a long card can take up to a minute)</p>
     </section>
   );
 }
 
 function FirstRunHint() {
   return (
-    <section className="no-print mt-6 rounded-3xl border-2 border-dashed border-[#3A2A1E]/30 bg-[#FFFBF2] p-5 text-sm text-[#3A2A1E]/65">
-      👋 New here? Tap <span className="font-bold text-[#C24E33]">Load sample</span>, then <span className="font-bold text-[#C24E33]">Scale recipe</span> to see a full production sheet — scaled amounts, batching, hot-line holding, and a pull list.
+    <section className="no-print mt-6 rounded-xl border border-dashed border-line bg-card p-5 text-sm text-ink-2">
+      New here? Tap <span className="font-bold text-accent">Load sample</span>, then <span className="font-bold text-accent">Scale recipe</span> to see a full production sheet — scaled amounts, batching, hot-line holding, and a pull list.
     </section>
   );
 }
@@ -695,53 +682,54 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
     }
   }
 
-  const sheetBtn = "rounded-full border-2 border-[#3A2A1E]/25 px-3 py-1.5 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5";
+  const sheetBtn = "rounded-lg border border-line px-3.5 py-2 text-sm font-semibold text-ink-2 hover:bg-bg";
 
   return (
-    <section className="sheet-card mt-6 rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-5 shadow-[0_10px_0_0_#3A2A1E]">
+    <section className="sheet-card mt-6 rounded-xl border border-line-2 bg-card p-5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="font-display text-2xl font-semibold">{sheet.dish}</h2>
-          <p className="text-sm text-[#3A2A1E]/65">
+          <h2 className=" text-2xl font-semibold">{sheet.dish}</h2>
+          <p className="text-sm text-ink-2">
             {sheet.baseYield.portions} portions → {sheet.targetYield.covers} covers @ {sheet.targetYield.portionSize}
-            {"  ·  "}finished yield: <span className="font-semibold text-[#51613A]">{sheet.targetYield.finishedYield}</span>
+            {"  ·  "}finished yield: <span className="font-semibold text-success">{sheet.targetYield.finishedYield}</span>
           </p>
         </div>
         <div className="no-print flex flex-wrap justify-end gap-2">
-          <button onClick={copyAll} className={sheetBtn}>{copied ? "✓ Copied" : "📋 Copy"}</button>
+          <button onClick={copyAll} className={sheetBtn}>{copied ? "✓ Copied" : "Copy"}</button>
           {sheet.pullList.length > 0 && (
             <button onClick={() => downloadText(`${safeFileName(sheet.dish)}-pull-list.csv`, pullListCsv(sheet), "text/csv;charset=utf-8")} className={sheetBtn}>
-              ⬇ Pull list (CSV)
+              Pull list (CSV)
             </button>
           )}
-          <button onClick={() => window.print()} className={sheetBtn}>🖨 Print / PDF</button>
-          <button onClick={() => setShowHaccp((s) => !s)} className={`${sheetBtn} ${showHaccp ? "bg-[#3A2A1E]/8" : ""}`}>
-            {showHaccp ? "🛡 Hide HACCP" : "🛡 HACCP summary"}
+          <button onClick={() => window.print()} className={sheetBtn}>Print / PDF</button>
+          <button onClick={() => setShowHaccp((s) => !s)} className={`${sheetBtn} ${showHaccp ? "bg-bg" : ""}`}>
+            {showHaccp ? "Hide HACCP" : "HACCP summary"}
           </button>
-          <button onClick={() => setShowPrep((s) => !s)} className={`${sheetBtn} ${showPrep ? "bg-[#3A2A1E]/8" : ""}`}>
-            {showPrep ? "📝 Hide prep list" : "📝 Prep list"}
+          <button onClick={() => setShowPrep((s) => !s)} className={`${sheetBtn} ${showPrep ? "bg-bg" : ""}`}>
+            {showPrep ? "Hide prep list" : "Prep list"}
           </button>
-          <button onClick={() => setShowSop((s) => !s)} className={`${sheetBtn} ${showSop ? "bg-[#3A2A1E]/8" : ""}`}>
-            {showSop ? "📘 Hide SOP" : "📘 SOP"}
+          <button onClick={() => setShowSop((s) => !s)} className={`${sheetBtn} ${showSop ? "bg-bg" : ""}`}>
+            {showSop ? "Hide SOP" : "SOP"}
           </button>
         </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4">
+      <div className="mt-4 rounded-lg border border-line bg-card p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="font-display text-base font-semibold">Accuracy checks</span>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${headline.status === "warn" ? "bg-[#C24E33]/15 text-[#C24E33]" : "bg-[#51613A]/15 text-[#51613A]"}`}>
-            {headline.status === "warn" ? `⚠ ${headline.warned} to review` : "✓ all passed"}
+          <span className=" text-base font-semibold">Accuracy checks</span>
+          <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${headline.status === "warn" ? "bg-warn-soft text-warn" : "bg-success-soft text-success"}`}>
+            {headline.status === "warn" ? `${headline.warned} to review` : "All checks passed"}
           </span>
         </div>
         <ul className="mt-2 space-y-1.5 text-sm">
           {checks.map((c, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className={`mt-0.5 shrink-0 font-bold ${c.status === "pass" ? "text-[#51613A]" : c.status === "warn" ? "text-[#C24E33]" : "text-[#3A2A1E]/35"}`}>
-                {c.status === "pass" ? "✓" : c.status === "warn" ? "⚠" : "·"}
-              </span>
+            <li key={i} className="flex items-start gap-2.5">
+              <span
+                aria-hidden
+                className={`mt-[7px] h-2 w-2 shrink-0 rounded-full ${c.status === "pass" ? "bg-success" : c.status === "warn" ? "bg-warn" : "bg-line-2"}`}
+              />
               <span>
-                <span className="font-semibold">{c.label}</span> <span className="text-[#3A2A1E]/60">— {c.detail}</span>
+                <span className="font-semibold">{c.label}</span> <span className="text-ink-2">— {c.detail}</span>
               </span>
             </li>
           ))}
@@ -752,38 +740,38 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
 
       <NutritionPanel est={nutrition} />
 
-      {showPrep && <DocPanel doc={buildPrepList(sheet)} icon="📝" cls="prep-panel" />}
-      {showSop && <DocPanel doc={buildSop(sheet)} icon="📘" cls="sop-panel" />}
+      {showPrep && <DocPanel doc={buildPrepList(sheet)} cls="prep-panel" />}
+      {showSop && <DocPanel doc={buildSop(sheet)} cls="sop-panel" />}
 
       {costing && costing.priced > 0 && (
-        <div className="mt-4 rounded-2xl border-2 border-[#51613A] bg-[#51613A]/8 p-4">
+        <div className="mt-4 rounded-lg border border-line bg-bg p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <span className="font-display text-base font-semibold text-[#51613A]">💲 Estimated food cost</span>
-            <span className="text-xs text-[#3A2A1E]/55">
+            <span className=" text-base font-semibold text-ink">Estimated food cost</span>
+            <span className="text-xs text-ink-3">
               {costing.priced}/{sheet.pullList.length} priced{costing.mismatched > 0 ? ` · ${costing.mismatched} unit mismatch` : ""}
             </span>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-8">
             <div>
-              <div className="font-display text-2xl font-bold">${costing.total.toFixed(2)}</div>
-              <div className="text-xs text-[#3A2A1E]/55">priced items total</div>
+              <div className=" text-2xl font-bold">${costing.total.toFixed(2)}</div>
+              <div className="text-xs text-ink-3">priced items total</div>
             </div>
             {costing.perCover != null ? (
               <div>
-                <div className="font-display text-2xl font-bold">${costing.perCover.toFixed(2)}</div>
-                <div className="text-xs text-[#3A2A1E]/55">per cover</div>
+                <div className=" text-2xl font-bold">${costing.perCover.toFixed(2)}</div>
+                <div className="text-xs text-ink-3">per cover</div>
               </div>
             ) : (
-              <div className="max-w-[14rem] text-xs text-[#3A2A1E]/55">Per-cover hidden until ≥60% of the list is priced in matching units.</div>
+              <div className="max-w-[14rem] text-xs text-ink-3">Per-cover hidden until ≥60% of the list is priced in matching units.</div>
             )}
           </div>
-          <p className="mt-2 text-xs text-[#3A2A1E]/45">
+          <p className="mt-2 text-xs text-ink-3">
             Partial estimate — only unit-matched items counted{costing.mismatched > 0 ? "; unit mismatches excluded" : ""}. Add prices in matching units (lb/oz, gal/qt/cup, each) for a full cost.
           </p>
         </div>
       )}
 
-      <h3 className="font-display mt-5 mb-2 text-base font-semibold">Scaled recipe</h3>
+      <h3 className=" mt-5 mb-2 text-base font-semibold">Scaled recipe</h3>
 
       {/* Table — tablet & desktop */}
       <div className="hidden overflow-x-auto sm:block">
@@ -795,7 +783,7 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
             <col className="w-[38%]" />
           </colgroup>
           <thead>
-            <tr className="border-b-2 border-[#3A2A1E]/15 text-left text-xs font-bold uppercase tracking-wide text-[#3A2A1E]/45">
+            <tr className="border-b-2 border-line text-left text-xs font-bold uppercase tracking-wide text-ink-3">
               <th className="py-2 pr-3">Ingredient</th>
               <th className="py-2 pr-3">Scaled</th>
               <th className="py-2 pr-3">×</th>
@@ -804,11 +792,11 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
           </thead>
           <tbody>
             {sheet.ingredients.map((ing, i) => (
-              <tr key={i} className="border-b border-[#3A2A1E]/8 align-top">
+              <tr key={i} className="border-b border-line align-top">
                 <td className="break-words py-2 pr-3 font-semibold">{ing.item}</td>
-                <td className="break-words py-2 pr-3 text-[#C24E33]">{ing.scaledQty}</td>
-                <td className="break-words py-2 pr-3 text-[#3A2A1E]/55">{ing.multiplier}</td>
-                <td className="break-words py-2 text-[#3A2A1E]/60">{ing.note}</td>
+                <td className="break-words py-2 pr-3 text-accent">{ing.scaledQty}</td>
+                <td className="break-words py-2 pr-3 text-ink-3">{ing.multiplier}</td>
+                <td className="break-words py-2 text-ink-2">{ing.note}</td>
               </tr>
             ))}
           </tbody>
@@ -818,13 +806,13 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
       {/* Stacked cards — phone */}
       <ul className="space-y-2 sm:hidden">
         {sheet.ingredients.map((ing, i) => (
-          <li key={i} className="rounded-2xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] p-3">
+          <li key={i} className="rounded-lg border border-line bg-bg p-3">
             <div className="flex items-baseline justify-between gap-2">
               <span className="font-semibold">{ing.item}</span>
-              <span className="whitespace-nowrap font-bold text-[#C24E33]">{ing.scaledQty}</span>
+              <span className="whitespace-nowrap font-bold text-accent">{ing.scaledQty}</span>
             </div>
             {(ing.multiplier || ing.note) && (
-              <p className="mt-1 text-xs text-[#3A2A1E]/55">
+              <p className="mt-1 text-xs text-ink-3">
                 {ing.multiplier ? <span className="mr-2 font-semibold">{ing.multiplier}</span> : null}
                 {ing.note}
               </p>
@@ -833,12 +821,12 @@ function Sheet({ sheet, prices }: { sheet: ProductionSheet; prices: PriceItem[] 
         ))}
       </ul>
 
-      <Block title="⚠ Batching" items={sheet.batching} />
-      <Block title="🔥 Holding on the line" items={sheet.holding} />
+      <Block title="Batching" items={sheet.batching} />
+      <Block title="Holding on the line" items={sheet.holding} />
       <PullList items={sheet.pullList} />
       <Block title="Assumptions" items={sheet.assumptions} muted />
-      {sheet.allergenFlags.length > 0 && <Block title="⚠ Allergen flags" items={sheet.allergenFlags} />}
-      {sheet.safetyFlags.length > 0 && <Block title="🛡 Safety & cooling" items={sheet.safetyFlags} />}
+      {sheet.allergenFlags.length > 0 && <Block title="Allergen flags" items={sheet.allergenFlags} />}
+      {sheet.safetyFlags.length > 0 && <Block title="Safety & cooling" items={sheet.safetyFlags} />}
     </section>
   );
 }
@@ -847,8 +835,8 @@ function Block({ title, items, muted }: { title: string; items: string[]; muted?
   if (!items || items.length === 0) return null;
   return (
     <div className="mt-4">
-      <h3 className="font-display mb-1.5 text-base font-semibold">{title}</h3>
-      <ul className={`list-disc space-y-1 pl-5 text-sm ${muted ? "text-[#3A2A1E]/45" : "text-[#3A2A1E]/75"}`}>
+      <h3 className=" mb-1.5 text-base font-semibold">{title}</h3>
+      <ul className={`list-disc space-y-1 pl-5 text-sm ${muted ? "text-ink-3" : "text-ink-2"}`}>
         {items.map((t, i) => (
           <li key={i}>{t}</li>
         ))}
@@ -869,9 +857,9 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
     }
   }
   const kindCls: Record<ControlKind, string> = {
-    CCP: "bg-[#C24E33]/15 text-[#C24E33]",
-    CP: "bg-[#51613A]/15 text-[#51613A]",
-    QCP: "bg-[#E9A93C]/30 text-[#8a5a12]",
+    CCP: "bg-accent-soft text-accent",
+    CP: "bg-success-soft text-success",
+    QCP: "bg-warn-soft text-warn",
   };
   const count = (k: ControlKind) => plan.entries.filter((x) => x.kind === k).length;
   const fields: { k: string; get: (x: HaccpPlan["entries"][number]) => string }[] = [
@@ -884,20 +872,20 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
   ];
 
   return (
-    <div className="haccp-panel mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4">
+    <div className="haccp-panel mt-4 rounded-lg border border-line bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="font-display text-base font-semibold">🛡 HACCP / CCP summary</div>
-          <div className="text-xs text-[#3A2A1E]/55">
+          <div className=" text-base font-semibold">HACCP / CCP summary</div>
+          <div className="text-xs text-ink-3">
             {count("CCP")} critical control points · {count("CP")} control points · {count("QCP")} quality point
           </div>
         </div>
-        <button onClick={copy} className="no-print rounded-full border-2 border-[#3A2A1E]/25 px-3 py-1.5 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5">
-          {copied ? "✓ Copied" : "📋 Copy plan"}
+        <button onClick={copy} className="no-print rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-2 hover:bg-bg">
+          {copied ? "✓ Copied" : "Copy plan"}
         </button>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[#3A2A1E]/55">
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-3">
         {(["CCP", "CP", "QCP"] as ControlKind[]).map((k) => (
           <span key={k} className="inline-flex items-center gap-1.5">
             <span className={`rounded-full px-2 py-0.5 font-bold ${kindCls[k]}`}>{k}</span>
@@ -908,7 +896,7 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
 
       <ol className="mt-3 space-y-2">
         {plan.entries.map((x, i) => (
-          <li key={i} className="rounded-2xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] p-3">
+          <li key={i} className="rounded-lg border border-line bg-bg p-3">
             <div className="flex items-center gap-2">
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${kindCls[x.kind]}`}>{x.kind}</span>
               <span className="font-semibold">
@@ -918,8 +906,8 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
             <dl className="mt-2 grid gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
               {fields.map((f) => (
                 <div key={f.k}>
-                  <dt className="text-[11px] font-bold uppercase tracking-wide text-[#3A2A1E]/45">{f.k}</dt>
-                  <dd className="text-[#3A2A1E]/80">{f.get(x)}</dd>
+                  <dt className="text-[11px] font-bold uppercase tracking-wide text-ink-3">{f.k}</dt>
+                  <dd className="text-ink-2">{f.get(x)}</dd>
                 </div>
               ))}
             </dl>
@@ -927,12 +915,12 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
         ))}
       </ol>
 
-      <p className="mt-3 text-xs text-[#3A2A1E]/45">{plan.notes.join(" ")}</p>
+      <p className="mt-3 text-xs text-ink-3">{plan.notes.join(" ")}</p>
     </div>
   );
 }
 
-function DocPanel({ doc, icon, cls }: { doc: OpsDoc; icon: string; cls: string }) {
+function DocPanel({ doc, cls }: { doc: OpsDoc; cls: string }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
@@ -944,26 +932,24 @@ function DocPanel({ doc, icon, cls }: { doc: OpsDoc; icon: string; cls: string }
     }
   }
   return (
-    <div className={`${cls} mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4`}>
+    <div className={`${cls} mt-4 rounded-lg border border-line bg-card p-4`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="font-display text-base font-semibold">
-            {icon} {doc.title}
-          </div>
-          <div className="text-xs text-[#3A2A1E]/55">{doc.subtitle}</div>
+          <div className="text-base font-semibold">{doc.title}</div>
+          <div className="text-xs text-ink-3">{doc.subtitle}</div>
         </div>
-        <button onClick={copy} className="no-print rounded-full border-2 border-[#3A2A1E]/25 px-3 py-1.5 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5">
-          {copied ? "✓ Copied" : "📋 Copy"}
+        <button onClick={copy} className="no-print rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-2 hover:bg-bg">
+          {copied ? "✓ Copied" : "Copy"}
         </button>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {doc.sections.map((s) => (
-          <section key={s.heading} className="rounded-2xl border-2 border-[#3A2A1E]/12 bg-[#FCF3E3] p-3">
-            <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#3A2A1E]/50">{s.heading}</h4>
-            <ul className="mt-1.5 space-y-1 text-sm text-[#3A2A1E]/80">
+          <section key={s.heading} className="rounded-lg border border-line bg-bg p-3">
+            <h4 className="text-[11px] font-bold uppercase tracking-wide text-ink-3">{s.heading}</h4>
+            <ul className="mt-1.5 space-y-1 text-sm text-ink-2">
               {s.lines.map((l, i) => (
                 <li key={i} className="flex gap-2">
-                  <span className="shrink-0 text-[#3A2A1E]/35">·</span>
+                  <span className="shrink-0 text-ink-3">·</span>
                   <span>{l}</span>
                 </li>
               ))}
@@ -977,10 +963,10 @@ function DocPanel({ doc, icon, cls }: { doc: OpsDoc; icon: string; cls: string }
 
 function NutritionPanel({ est }: { est: NutritionEstimate }) {
   const sodiumCls: Record<NutritionEstimate["sodiumLevel"], string> = {
-    low: "bg-[#51613A]/15 text-[#51613A]",
-    moderate: "bg-[#E9A93C]/30 text-[#8a5a12]",
-    high: "bg-[#C24E33]/15 text-[#C24E33]",
-    "very high": "bg-[#B0392A]/20 text-[#B0392A]",
+    low: "bg-success-soft text-success",
+    moderate: "bg-warn-soft text-warn",
+    high: "bg-accent-soft text-accent",
+    "very high": "bg-danger-soft text-danger",
   };
   const p = est.perPortion;
   const r0 = (n: number) => String(Math.round(n));
@@ -995,9 +981,9 @@ function NutritionPanel({ est }: { est: NutritionEstimate }) {
   ];
 
   return (
-    <div className="nutrition-panel mt-4 rounded-2xl border-2 border-[#3A2A1E]/15 bg-[#FFFBF2] p-4">
+    <div className="nutrition-panel mt-4 rounded-lg border border-line bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-display text-base font-semibold">🥗 Nutrition per portion (estimate)</span>
+        <span className=" text-base font-semibold">Nutrition per portion (estimate)</span>
         {est.ok && (
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${sodiumCls[est.sodiumLevel]}`}>
             sodium: {est.sodiumLevel}
@@ -1009,16 +995,16 @@ function NutritionPanel({ est }: { est: NutritionEstimate }) {
         <>
           <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
             {tiles.map((t) => (
-              <div key={t.k} className="rounded-xl border-2 border-[#3A2A1E]/10 bg-[#FCF3E3] px-2 py-2 text-center">
-                <div className="font-display text-lg font-bold leading-tight">{t.v}</div>
-                <div className="text-[11px] font-semibold text-[#3A2A1E]/55">
+              <div key={t.k} className="rounded-xl border border-line bg-bg px-2 py-2 text-center">
+                <div className=" text-lg font-bold leading-tight">{t.v}</div>
+                <div className="text-[11px] font-semibold text-ink-3">
                   {t.k}
                   {t.sub ? ` · ${t.sub}` : ""}
                 </div>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-xs text-[#3A2A1E]/60">
+          <p className="mt-2 text-xs text-ink-2">
             Calories from protein {est.split.protein}% · carbs {est.split.carbs}% · fat {est.split.fat}%.
             {est.sodiumLevel === "high" || est.sodiumLevel === "very high"
               ? " Sodium is ≥20% of the 2,300 mg daily value per portion — consider a lower-sodium stock or soy sauce if this is a daily-menu item."
@@ -1026,12 +1012,12 @@ function NutritionPanel({ est }: { est: NutritionEstimate }) {
           </p>
         </>
       ) : (
-        <p className="mt-2 text-sm text-[#3A2A1E]/65">
+        <p className="mt-2 text-sm text-ink-2">
           Not enough recognizable ingredients to estimate ({est.matched} of {est.counted} matched by weight coverage {Math.round(est.coverageByWeight * 100)}%).
         </p>
       )}
 
-      <p className="mt-2 text-xs text-[#3A2A1E]/45">
+      <p className="mt-2 text-xs text-ink-3">
         Based on {est.matched} of {est.counted} quantified ingredients ({Math.round(est.coverageByWeight * 100)}% by weight)
         {notCounted.length > 0 ? ` — not counted: ${notCounted.slice(0, 4).join(", ")}${notCounted.length > 4 ? "…" : ""}` : ""}.
         {est.saltToTaste ? " Salt added to taste isn't counted: 1 tsp table salt ≈ 2,300 mg sodium across the batch." : ""}{" "}
@@ -1045,12 +1031,12 @@ function PullList({ items }: { items: ProductionSheet["pullList"] }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="mt-4">
-      <h3 className="font-display mb-1.5 text-base font-semibold">📋 Pull list (order from inventory)</h3>
-      <ul className="space-y-1 text-sm text-[#3A2A1E]/75">
+      <h3 className=" mb-1.5 text-base font-semibold">Pull list (order from inventory)</h3>
+      <ul className="space-y-1 text-sm text-ink-2">
         {items.map((it, i) => (
           <li key={i}>
             <span className="font-semibold">{it.item}</span> — {it.apQty}
-            {it.note ? <span className="text-[#3A2A1E]/45"> · {it.note}</span> : null}
+            {it.note ? <span className="text-ink-3"> · {it.note}</span> : null}
           </li>
         ))}
       </ul>

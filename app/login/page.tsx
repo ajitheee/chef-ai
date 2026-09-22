@@ -109,28 +109,28 @@ export default function LoginPage() {
   }
 
   const input =
-    "mt-3 w-full rounded-xl border-2 border-[#3A2A1E]/20 bg-[#FCF3E3] px-3 py-2.5 text-base focus:border-[#C24E33] focus:outline-none";
+    "mt-3 w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-base focus:border-accent focus:outline-none";
   const secondary =
-    "rounded-full border-2 border-[#3A2A1E]/25 px-3 py-2 text-xs font-bold text-[#3A2A1E]/70 hover:bg-[#3A2A1E]/5 disabled:opacity-50";
+    "rounded-full border border-line px-3 py-2 text-xs font-bold text-ink-2 hover:bg-bg disabled:opacity-50";
 
   return (
-    <div className="font-techno flex min-h-screen items-center justify-center bg-[#FCF3E3] px-4 text-[#3A2A1E]">
-      <form onSubmit={signIn} className="w-full max-w-sm rounded-3xl border-2 border-[#3A2A1E] bg-[#FFFBF2] p-6 shadow-[0_10px_0_0_#3A2A1E]">
-        <h1 className="font-display text-2xl font-semibold">Digital Chef AI</h1>
+    <div className=" flex min-h-screen items-center justify-center bg-bg px-4 text-ink">
+      <form onSubmit={signIn} className="w-full max-w-sm rounded-xl border border-line-2 bg-card p-6 shadow-sm">
+        <h1 className=" text-2xl font-semibold">Digital Chef AI</h1>
 
         {!supabase ? (
-          <p className="mt-2 text-sm text-[#3A2A1E]/70">
+          <p className="mt-2 text-sm text-ink-2">
             Sign-in isn&apos;t set up yet (no database connected), so the app is open.{" "}
-            <a href="/library" className="font-bold text-[#C24E33]">Go to your library →</a>
+            <a href="/library" className="font-bold text-accent">Go to your library →</a>
           </p>
         ) : (
           <>
-            <p className="mt-1 text-sm text-[#3A2A1E]/65">Sign in to your kitchen.</p>
+            <p className="mt-1 text-sm text-ink-2">Sign in to your kitchen.</p>
             <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={input} placeholder="chef@campus.edu" />
             <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} placeholder="Password" />
-            {error && <p className="mt-2 text-sm font-semibold text-[#B0392A]">{error}</p>}
-            {note && <p className="mt-2 text-sm font-semibold text-[#51613A]">{note}</p>}
-            <button disabled={busy || !email || !password} className="mt-4 w-full rounded-full bg-[#C24E33] px-4 py-3 text-sm font-bold text-[#FCF3E3] shadow-[0_6px_0_0_#A33E27] disabled:opacity-50">
+            {error && <p className="mt-2 text-sm font-semibold text-danger">{error}</p>}
+            {note && <p className="mt-2 text-sm font-semibold text-success">{note}</p>}
+            <button disabled={busy || !email || !password} className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-bold text-white shadow-sm disabled:opacity-50">
               {busy ? "Working…" : "Sign in →"}
             </button>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -144,7 +144,7 @@ export default function LoginPage() {
                 Email me a sign-in link
               </button>
             </div>
-            <p className="mt-3 text-[11px] text-[#3A2A1E]/50">
+            <p className="mt-3 text-[11px] text-ink-3">
               First time? Enter your email + a password and click <b>Create account</b>. Signed up by email link before? Use <b>Set / reset password</b>.
             </p>
           </>
