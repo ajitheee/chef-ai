@@ -61,7 +61,13 @@ export default function LoginPage() {
     });
     setBusy(false);
     if (error) {
-      setError(/already/i.test(error.message) ? "That email already has an account — sign in, or use “Set / reset password”." : error.message);
+      setError(
+        /already/i.test(error.message)
+          ? "That email already has an account — sign in, or use “Set / reset password”."
+          : /signups? (are )?not allowed|disabled/i.test(error.message)
+            ? "New accounts are created by your admin — ask them to add you, then sign in here."
+            : error.message
+      );
       return;
     }
     if (data.session) {
