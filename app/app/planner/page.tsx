@@ -123,7 +123,7 @@ export default function Planner() {
                 ))}
               </select>
               <input className={`${inputCls} w-28`} inputMode="numeric" placeholder="covers" value={covers} onChange={(e) => setCovers(e.target.value)} />
-              <button onClick={addRow} className="rounded-full bg-success px-5 py-2.5 text-sm font-bold text-success-ink hover:bg-success-hover">+ Add</button>
+              <button onClick={addRow} className="rounded-md bg-success px-5 py-2.5 text-sm font-bold text-success-ink hover:bg-success-hover">+ Add</button>
             </div>
 
             {rows.length > 0 && (
@@ -140,7 +140,7 @@ export default function Planner() {
               </ul>
             )}
 
-            <button onClick={build} disabled={building || rows.length === 0} className="mt-5 w-full rounded-full bg-accent px-4 py-3.5 text-sm font-bold text-accent-ink shadow-sm transition disabled:opacity-50 disabled:shadow-none">
+            <button onClick={build} disabled={building || rows.length === 0} className="mt-5 w-full rounded-md bg-accent px-4 py-3.5 text-sm font-bold text-accent-ink shadow-sm transition disabled:opacity-50 disabled:shadow-none">
               {building ? "Building plan…" : "Build production plan →"}
             </button>
             {error && <p className="mt-3 rounded-xl border border-danger bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
@@ -157,7 +157,7 @@ export default function Planner() {
             <h2 className=" text-xl font-semibold">Service plan</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               {built.map((b, i) => (
-                <span key={i} className="rounded-full border border-line bg-bg px-3 py-1 text-sm">
+                <span key={i} className="rounded-md border border-line bg-bg px-3 py-1 text-sm">
                   <span className="font-semibold">{b.dish}</span> · {b.covers}{b.cost > 0 ? ` · $${b.cost.toFixed(0)}` : ""}
                 </span>
               ))}
@@ -165,7 +165,7 @@ export default function Planner() {
 
             <div className="mt-4 flex items-center justify-between">
               <h3 className=" text-base font-semibold">Consolidated purchasing</h3>
-              <button onClick={exportCsv} className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-ink-2 hover:bg-bg">CSV</button>
+              <button onClick={exportCsv} className="rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink-2 hover:bg-bg">CSV</button>
             </div>
             <ul className="mt-2 space-y-1 text-sm">
               {consolidated.map((c, i) => (

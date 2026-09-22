@@ -62,7 +62,7 @@ export default function SetPasswordPage() {
             <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} placeholder="New password (8+ characters)" />
             <input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} placeholder="Confirm password" />
             {error && <p className="mt-2 text-sm font-semibold text-danger">{error}</p>}
-            <button disabled={busy || !password || !confirm} className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
+            <button disabled={busy || !password || !confirm} className="mt-4 w-full rounded-md bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
               {busy ? "Saving…" : "Save password →"}
             </button>
           </>

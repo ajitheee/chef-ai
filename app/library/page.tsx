@@ -9,7 +9,7 @@ export const metadata = {
   title: "Recipe library · Digital Chef AI",
 };
 
-const chip = "rounded-full border px-3.5 py-1.5 text-xs font-bold";
+const chip = "rounded-md border px-3.5 py-1.5 text-xs font-bold";
 
 export default async function LibraryPage() {
   const repo = await getRecipeRepository();
@@ -59,12 +59,12 @@ export default async function LibraryPage() {
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-ink-3">
             <span className="font-semibold">Import:</span>
             <form action={importChefRecipes}>
-              <button className="rounded-full border border-accent px-3 py-1 text-xs font-bold text-accent hover:bg-accent-soft">
+              <button className="rounded-md border border-accent px-3 py-1 text-xs font-bold text-accent hover:bg-accent-soft">
                 my 4 Centerpointe recipes
               </button>
             </form>
             <form action={importStarters}>
-              <button className="rounded-full border border-warn px-3 py-1 text-xs font-bold text-warn hover:bg-warn-soft">
+              <button className="rounded-md border border-warn px-3 py-1 text-xs font-bold text-warn hover:bg-warn-soft">
                 the 50-recipe test library
               </button>
             </form>
@@ -89,7 +89,7 @@ export default async function LibraryPage() {
                 {r.tags && r.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {r.tags.map((t) => (
-                      <span key={t} className="rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">
+                      <span key={t} className="rounded-md bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">
                         {t}
                       </span>
                     ))}

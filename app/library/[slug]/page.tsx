@@ -43,7 +43,7 @@ export default async function RecipeDetailPage({
           {recipe.tags && recipe.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1">
               {recipe.tags.map((t) => (
-                <span key={t} className="rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">
+                <span key={t} className="rounded-md bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">
                   {t}
                 </span>
               ))}
@@ -58,7 +58,7 @@ export default async function RecipeDetailPage({
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <Link
               href={`/app?recipe=${encodeURIComponent(recipe.slug)}`}
-              className="inline-block rounded-full bg-accent px-5 py-3 text-sm font-bold text-accent-ink shadow-sm transition"
+              className="inline-block rounded-md bg-accent px-5 py-3 text-sm font-bold text-accent-ink shadow-sm transition"
             >
               Scale this recipe →
             </Link>

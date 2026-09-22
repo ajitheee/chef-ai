@@ -49,7 +49,7 @@ export default function GatePage() {
           placeholder="Password"
         />
         {error && <p className="mt-2 text-sm font-semibold text-danger">{error}</p>}
-        <button disabled={busy || !password} className="mt-4 w-full rounded-full bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
+        <button disabled={busy || !password} className="mt-4 w-full rounded-md bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
           {busy ? "Checking…" : "Enter →"}
         </button>
       </form>

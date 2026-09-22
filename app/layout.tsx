@@ -11,20 +11,12 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-/* TEMPORARY (design pick): apply the look chosen with <ThemePicker /> before first paint. */
-const LOOK_SCRIPT =
-  '(function(){try{var m=document.cookie.match(/(?:^|;\\s*)chefai-theme=(whites|night|paper)\\b/);' +
-  'if(m)document.documentElement.setAttribute("data-theme",m[1]);}catch(e){}})();';
-
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
-        <script dangerouslySetInnerHTML={{ __html: LOOK_SCRIPT }} />
-        {children}
-      </body>
+    <html lang="en">
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
