@@ -104,13 +104,11 @@ export const PRODUCTION_SHEET_JSON_SCHEMA = {
         type: "object",
         properties: {
           item: { type: "string" },
-          scaledQty: { type: "string", description: "Scaled amount, e.g. '136 lb'." },
-          unit: { type: "string" },
+          scaledQty: { type: "string", description: "Scaled amount WITH unit, e.g. '136 lb'." },
           role: {
             type: "string",
             description: "structural | flavor_base | high_impact | binder | fat | finishing | functional",
           },
-          baseQty: { type: "string", description: "Original amount in the base recipe." },
           multiplier: { type: "string", description: "Effective multiplier, e.g. 'x11 (dampened)'." },
           note: { type: "string", description: "One-line reason for non-linear scaling, if any." },
         },
@@ -151,7 +149,7 @@ export const PRODUCTION_SHEET_JSON_SCHEMA = {
       description: "Major allergens present (milk, egg, fish, shellfish, tree nut, peanut, wheat/gluten, soy, sesame). Never claim allergen-free without known controls.",
     },
   },
-  required: ["dish", "baseYield", "targetYield", "ingredients"],
+  required: ["dish", "baseYield", "targetYield", "ingredients", "method", "batching", "holding", "pullList", "assumptions", "safetyFlags", "allergenFlags"],
 } as const;
 
 /** ---------- VARIATIONS (the creative lens) ---------- */

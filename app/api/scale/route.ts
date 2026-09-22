@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { scaleRecipe, engineFailure } from "@/lib/engine/claude";
+import { scaleRecipe, engineFailure, friendlyEngineError } from "@/lib/engine/claude";
 import { ScaleInputSchema, type ScaleInput, type ProductionSheet } from "@/lib/engine/schema";
 import { isDemoMode, demoScale, demoScaleFromText } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     const t0 = Date.now();
     try {
-      const sheet = await scaleRecipe(input);
-      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0 });
+      const { sheet, usage } = await scaleRecipe(input);
+      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0, usage });
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, sheet, demo: true, note });
     }
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Something went wrong scaling the recipe.";
+    const message = friendlyEngineError(e, "Something went wrong scaling the recipe.");
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

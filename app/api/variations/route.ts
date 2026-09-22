@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { suggestVariations, engineFailure } from "@/lib/engine/claude";
+import { suggestVariations, engineFailure, friendlyEngineError } from "@/lib/engine/claude";
 import { VariationsInputSchema } from "@/lib/engine/schema";
 import { isDemoMode, demoVariations } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
@@ -43,8 +43,7 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Something went wrong generating variations.";
+    const message = friendlyEngineError(e, "Something went wrong generating variations.");
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

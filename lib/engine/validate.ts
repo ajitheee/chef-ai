@@ -1,4 +1,17 @@
 import type { ProductionSheet } from "./schema";
+import { COOK_YIELDS, toGrams } from "./yield";
+
+/** Which standard cooking yield applies to a protein line (first match wins). */
+const PROTEIN_COOK: [RegExp, string][] = [
+  [/ground (beef|pork|turkey|chicken|lamb|meat)|sausage|chorizo|meatball|meatloaf|kofta/i, "ground meat, browned"],
+  [/pork shoulder|pork butt|pernil|carnitas|pulled pork|al pastor/i, "pork shoulder (braise/roast)"],
+  [/\bpork\b/i, "pork loin/chops"],
+  [/brisket|chuck|short rib/i, "beef braise/roast (chuck, brisket)"],
+  [/\b(beef|steak|sirloin|flank|skirt|carne)\b/i, "beef steak / grilled whole muscle"],
+  [/chicken|turkey|poultry|duck/i, "poultry (roast/grill)"],
+  [/shrimp|prawn/i, "shrimp"],
+  [/salmon|cod|tilapia|halibut|tuna|snapper|\bfish\b/i, "fish fillet"],
+];
 
 /**
  * Deterministic validation locks (master prompt Module 20). The engine is ASKED
@@ -199,6 +212,35 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
     checks.push({ label: "Allergen check", status: "pass", detail: `Detected ${detected.join(", ")} — sheet carries ${sheet.allergenFlags.length} allergen flag(s).` });
   } else {
     checks.push({ label: "Allergen check", status: "warn", detail: `Detected ${detected.join(", ")} in ingredients, but the sheet has no allergen flags.` });
+  }
+
+  // 5 — Cooked-protein cross-check (INFO only): the biggest raw protein line ×
+  // the standard cooking yield, computed here rather than by the model. Shown
+  // when it disagrees with the stated finished yield, so the chef sees the
+  // deterministic number next to the engine's — never as an alarm.
+  const f2 = parseQ(sheet.targetYield.finishedYield);
+  let best: { item: string; grams: number; label: string; y: number } | null = null;
+  for (const ing of sheet.ingredients) {
+    const hit = PROTEIN_COOK.find(([re]) => re.test(ing.item));
+    if (!hit) continue;
+    const g = toGrams(ing.item, ing.scaledQty);
+    if (!g) continue;
+    const cy = COOK_YIELDS.find((c) => c.label === hit[1]);
+    if (!cy) continue;
+    if (!best || g.grams > best.grams) best = { item: ing.item, grams: g.grams, label: hit[1], y: cy.yield };
+  }
+  if (best && f2 && f2.family === "weight") {
+    const rawOz = best.grams / 28.3495;
+    const cookedOz = rawOz * best.y;
+    const statedOz = f2.n * f2.base;
+    const ratio = statedOz / cookedOz;
+    if (ratio < 0.75 || ratio > 1.35) {
+      checks.push({
+        label: "Cooked-protein cross-check",
+        status: "info",
+        detail: `${fmtWeight(rawOz)} raw ${best.item.toLowerCase()} × ${Math.round(best.y * 100)}% cook yield ≈ ${fmtWeight(cookedOz)} cooked; the sheet states ${fmtWeight(statedOz)}. Order from the pull list; treat the finished figure as approximate.`,
+      });
+    }
   }
 
   // 4 — Execution feasibility: large batches must say how to batch.

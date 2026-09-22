@@ -235,13 +235,32 @@ export function applyPurchasing<T extends { item: string; apQty: string; note?: 
   });
 }
 
+/** Cooked weight as a fraction of raw edible weight — the number every run must agree on. */
+export const COOK_YIELDS: { label: string; yield: number }[] = [
+  { label: "poultry (roast/grill)", yield: 0.72 },
+  { label: "pork shoulder (braise/roast)", yield: 0.65 },
+  { label: "pork loin/chops", yield: 0.75 },
+  { label: "beef braise/roast (chuck, brisket)", yield: 0.65 },
+  { label: "beef steak / grilled whole muscle", yield: 0.75 },
+  { label: "ground meat, browned", yield: 0.72 },
+  { label: "fish fillet", yield: 0.8 },
+  { label: "shrimp", yield: 0.8 },
+  { label: "roasted vegetables", yield: 0.8 },
+  { label: "sautéed aromatics", yield: 0.7 },
+];
+
 /** Compact reference for the live engine's prompt, so both engines use the same standard numbers. */
 export function yieldReferenceText(): string {
   const y = YIELDS.filter((e) => e.yield < 1)
     .map((e) => `${e.label} ${Math.round(e.yield * 100)}%`)
     .join(", ");
+  const c = COOK_YIELDS.map((e) => `${e.label} ${Math.round(e.yield * 100)}%`).join(", ");
   const d = DENSITIES.filter((e) => e.buyBy === "weight")
     .map((e) => `${e.label} ${e.ozPerCup} oz/cup`)
     .join(", ");
-  return `STANDARD EP/AP YIELDS (edible fraction of as-purchased; override with the chef's own numbers when given): ${y}.\nSTANDARD DENSITIES for volume->weight on the pull list: ${d}. Liquids (stock, oil, purees) stay in volume units for ordering.`;
+  return [
+    `STANDARD EP/AP TRIM YIELDS (edible fraction of as-purchased; override with the chef's own numbers when given): ${y}.`,
+    `STANDARD COOKING YIELDS (cooked weight ÷ raw edible weight — use these, don't guess, unless the card or kitchen memory states one): ${c}; dry rice cooks up 3x, dry pasta 2.2x, dry beans 2.5x.`,
+    `STANDARD DENSITIES for volume->weight on the pull list: ${d}. Liquids (stock, oil, purees) stay in volume units for ordering.`,
+  ].join("\n");
 }

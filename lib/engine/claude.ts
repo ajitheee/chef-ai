@@ -19,7 +19,9 @@ import {
 
 // Default model — override with ANTHROPIC_MODEL in .env.local if your key
 // has access to a different Claude version.
-export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+// Sonnet 5 measured 31 s vs 52 s for Sonnet 4.5 on the same 20-ingredient
+// card with the same output size (2026-09-21). Override with ANTHROPIC_MODEL.
+export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
 
 // Per-call engine timeout. A long card can take 60-90 s to generate; the
 // routes allow 300 s (maxDuration), and with one retry the worst case stays
@@ -27,12 +29,36 @@ export const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929"
 // the platform killing the function mid-response.
 export const ENGINE_TIMEOUT_MS = Number(process.env.ENGINE_TIMEOUT_MS) || 140_000;
 
+// The system prompt (+ the tool schema that precedes it in the request) is
+// identical on every call, so it's marked as a prompt-cache breakpoint:
+// after the first call it's read from cache at ~10% of the input price.
+const CACHED_SYSTEM = [
+  { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } } as Anthropic.TextBlockParam,
+];
+
+export type EngineUsage = { input: number; output: number; cacheRead: number; cacheWrite: number };
+
+function usageOf(response: Anthropic.Message): EngineUsage {
+  const u = response.usage as unknown as {
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number | null;
+    cache_creation_input_tokens?: number | null;
+  };
+  return {
+    input: u.input_tokens,
+    output: u.output_tokens,
+    cacheRead: u.cache_read_input_tokens ?? 0,
+    cacheWrite: u.cache_creation_input_tokens ?? 0,
+  };
+}
+
 /**
  * Calls Claude with the v4.0 dining-hall engine and returns a validated
  * production sheet. The Anthropic client is created lazily so the app builds
  * and imports fine even before an API key exists.
  */
-export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
+export async function scaleRecipe(input: ScaleInput): Promise<{ sheet: ProductionSheet; usage: EngineUsage }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -45,10 +71,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 8192,
-    // NOTE: prompt caching (a ~90% cost saver on the large system prompt) is a
-    // Week-2 optimization — re-add via the SDK's caching API once the model/SDK
-    // version is locked. Trivial cost at design-partner volume without it.
-    system: SYSTEM_PROMPT,
+    system: CACHED_SYSTEM,
     tools: [
       {
         name: "emit_production_sheet",
@@ -71,7 +94,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<ProductionSheet> {
   }
   const sheet = parsed.data;
   sheet.assumptions = [...sheet.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}).`];
-  return sheet;
+  return { sheet, usage: usageOf(response) };
 }
 
 /**
@@ -90,12 +113,23 @@ export function engineFailure(e: unknown): string | null {
     return "The AI engine's API key is invalid or missing on the server.";
   }
   if (status === 403 || /permission_error/i.test(msg)) return "The AI engine's API key doesn't have access to this model.";
+  if (status === 404 || /not_found_error/i.test(msg)) return "The configured AI model isn't available to this key (check ANTHROPIC_MODEL).";
   if (status === 429 || /rate_limit/i.test(msg)) return "The AI engine is rate-limited right now — try again in a minute.";
   if ((status !== undefined && status >= 500) || /overloaded|api_error|internal server/i.test(msg)) {
     return "The AI engine is temporarily unavailable.";
   }
   if (/fetch failed|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|network/i.test(msg)) return "The AI engine couldn't be reached.";
   return null;
+}
+
+/** A readable message for any engine error a route can't recover from (never the raw JSON blob). */
+export function friendlyEngineError(e: unknown, fallback: string): string {
+  if (e instanceof Anthropic.APIError) {
+    const raw = e.message || "";
+    const m = raw.match(/"message"\s*:\s*"([^"]+)"/);
+    return `The AI engine rejected the request: ${m ? m[1] : raw.slice(0, 160)}`;
+  }
+  return e instanceof Error ? e.message : fallback;
 }
 
 /**
@@ -114,7 +148,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    system: CACHED_SYSTEM,
     tools: [
       {
         name: "emit_variations",
@@ -157,7 +191,7 @@ export async function refineSheet(
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    system: CACHED_SYSTEM,
     tools: [
       {
         name: "emit_production_sheet",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { refineSheet, engineFailure } from "@/lib/engine/claude";
+import { refineSheet, engineFailure, friendlyEngineError } from "@/lib/engine/claude";
 import { ProductionSheetSchema } from "@/lib/engine/schema";
 import { isDemoMode } from "@/lib/engine/demo";
 
@@ -37,8 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, sheet, demo: true, note: `${reason} The sheet is unchanged — try again once it's back.` });
     }
   } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "Something went wrong refining the sheet.";
+    const message = friendlyEngineError(e, "Something went wrong refining the sheet.");
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
