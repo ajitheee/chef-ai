@@ -16,6 +16,7 @@ import {
   type VariationsInput,
   type VariationsResult,
 } from "./schema";
+import { retrieveKnowledge, KNOWLEDGE_PACK_VERSION } from "./brain/retrieve";
 
 // Default model — override with ANTHROPIC_MODEL in .env.local if your key
 // has access to a different Claude version.
@@ -54,11 +55,14 @@ function usageOf(response: Anthropic.Message): EngineUsage {
 }
 
 /**
- * Calls Claude with the v4.0 dining-hall engine and returns a validated
- * production sheet. The Anthropic client is created lazily so the app builds
+ * Calls Claude with the Kitchen Brain engine (Master Prompt + application
+ * contract, plus the Knowledge Pack sections retrieved for this job) and
+ * returns a validated production sheet. The Anthropic client is created lazily so the app builds
  * and imports fine even before an API key exists.
  */
-export async function scaleRecipe(input: ScaleInput): Promise<{ sheet: ProductionSheet; usage: EngineUsage }> {
+export async function scaleRecipe(
+  input: ScaleInput
+): Promise<{ sheet: ProductionSheet; usage: EngineUsage; knowledge: string[] }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -67,6 +71,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<{ sheet: Productio
   }
 
   const client = new Anthropic({ apiKey, maxRetries: 1 });
+  const knowledge = retrieveKnowledge(input);
 
   const response = await client.messages.create({
     model: MODEL,
@@ -80,7 +85,7 @@ export async function scaleRecipe(input: ScaleInput): Promise<{ sheet: Productio
       },
     ],
     tool_choice: { type: "tool", name: "emit_production_sheet" },
-    messages: [{ role: "user", content: buildUserContent(input) }],
+    messages: [{ role: "user", content: buildUserContent(input, knowledge.sections) }],
   }, { timeout: ENGINE_TIMEOUT_MS });
 
   const block = response.content.find((b) => b.type === "tool_use");
@@ -93,8 +98,12 @@ export async function scaleRecipe(input: ScaleInput): Promise<{ sheet: Productio
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
   const sheet = parsed.data;
-  sheet.assumptions = [...sheet.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}).`];
-  return { sheet, usage: usageOf(response) };
+  sheet.status = sheet.status || "Draft"; // recipe lifecycle: generated, not yet tested
+  sheet.assumptions = [
+    ...sheet.assumptions,
+    `Engine: ${ENGINE_VERSION} (${MODEL}) · Knowledge Pack v${KNOWLEDGE_PACK_VERSION}: ${knowledge.titles.join("; ")}.`,
+  ];
+  return { sheet, usage: usageOf(response), knowledge: knowledge.titles };
 }
 
 /**
@@ -219,6 +228,7 @@ export async function refineSheet(
   // defaults must never wipe a hazard flagged on the prior sheet.
   return {
     ...updated,
+    status: "Draft",
     safetyFlags: updated.safetyFlags.length ? updated.safetyFlags : sheet.safetyFlags,
     allergenFlags: updated.allergenFlags.length ? updated.allergenFlags : sheet.allergenFlags,
     assumptions: [...updated.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}) · refined.`],

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { MODEL } from "@/lib/engine/claude";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { MASTER_PROMPT_VERSION } from "@/lib/engine/brain/master-prompt";
+import { KNOWLEDGE_PACK_VERSION, KNOWLEDGE_SECTIONS } from "@/lib/engine/brain/retrieve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +40,7 @@ export async function GET() {
     ok: true,
     engine,
     model: MODEL,
+    brain: { masterPrompt: MASTER_PROMPT_VERSION, knowledgePack: KNOWLEDGE_PACK_VERSION, sections: KNOWLEDGE_SECTIONS.length },
     database: isSupabaseConfigured() ? "connected" : "not_configured",
     access: isSupabaseConfigured() ? "supabase-login" : process.env.APP_PASSWORD ? "password-gate" : "open",
     build: (process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 7),

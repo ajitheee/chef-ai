@@ -48,7 +48,7 @@ key anywhere in this app — it isn't needed and would bypass row-level security
 
 ## Before every deploy
 ```bash
-npm run sweep
+npm run sweep && npm run referee && npm run brain:check
 ```
 Runs all 54 recipes (the chef's presets + the test library) through the whole
 deterministic pipeline — scaler, accuracy referee, purchasing, nutrition,

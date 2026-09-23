@@ -3,6 +3,7 @@ import { scaleRecipe, engineFailure, friendlyEngineError } from "@/lib/engine/cl
 import { ScaleInputSchema, type ScaleInput, type ProductionSheet } from "@/lib/engine/schema";
 import { isDemoMode, demoScale, demoScaleFromText } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
+import { ENGINE_VERSION } from "@/lib/engine/prompt";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,8 +32,8 @@ export async function POST(req: NextRequest) {
 
     const t0 = Date.now();
     try {
-      const { sheet, usage } = await scaleRecipe(input);
-      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0, usage });
+      const { sheet, usage, knowledge } = await scaleRecipe(input);
+      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0, usage, engine: ENGINE_VERSION, knowledge });
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;

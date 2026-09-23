@@ -47,6 +47,8 @@ export type PullItem = z.infer<typeof PullItemSchema>;
 export const ProductionSheetSchema = z.object({
   dish: z.string(),
   mode: z.string().optional().default("savory"),
+  /** Recipe lifecycle (Master Prompt): Draft | Tested | Approved Master. Stamped by the app, not asked of the model. */
+  status: z.string().optional(),
   baseYield: z.object({
     portions: z.number(),
     portionSize: z.string(),

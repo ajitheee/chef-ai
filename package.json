@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "sweep": "tsx scripts/sweep.ts",
-    "referee": "tsx scripts/referee-check.ts"
+    "referee": "tsx scripts/referee-check.ts",
+    "brain": "tsx scripts/build-brain.ts",
+    "brain:check": "tsx scripts/brain-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

@@ -22,6 +22,8 @@ type ApiReply = {
   note?: string;
   result?: { variations?: unknown };
   ms?: number;
+  engine?: string;
+  knowledge?: string[];
 };
 
 /** Parse an API reply; a platform error page (timeout, crash) becomes one plain sentence, not a JSON parser error. */
@@ -58,6 +60,8 @@ export default function Home() {
   const [demo, setDemo] = useState(false);
   const [engineNote, setEngineNote] = useState("");
   const [engineMs, setEngineMs] = useState<number | null>(null);
+  const [engineLabel, setEngineLabel] = useState<string | null>(null);
+  const [knowledgeUsed, setKnowledgeUsed] = useState<string[]>([]);
 
   const [refineText, setRefineText] = useState("");
   const [refining, setRefining] = useState(false);
@@ -278,6 +282,8 @@ export default function Home() {
       setDemo(!!data.demo);
       setEngineNote(typeof data.note === "string" ? data.note : "");
       setEngineMs(typeof data.ms === "number" ? data.ms : null);
+      setEngineLabel(typeof data.engine === "string" ? data.engine : null);
+      setKnowledgeUsed(Array.isArray(data.knowledge) ? data.knowledge : []);
       setRefineNote("");
       store().history.add(s.dish, s.targetYield.covers, s).then(setHistory).catch(() => {});
     } catch (e) {
@@ -319,6 +325,9 @@ export default function Home() {
     setSheet(e.sheet as ProductionSheet);
     setRefineNote("");
     setError("");
+    setEngineMs(null);
+    setEngineLabel(null);
+    setKnowledgeUsed([]);
   }
 
   async function onVariations() {
@@ -574,7 +583,7 @@ export default function Home() {
             </p>
           )}
 
-          {sheet && <Sheet sheet={sheet} prices={prices} engineMs={demo ? null : engineMs} />}
+          {sheet && <Sheet sheet={sheet} prices={prices} engineMs={demo ? null : engineMs} engineLabel={demo ? null : engineLabel} knowledge={demo ? [] : knowledgeUsed} />}
 
           {sheet && (
             <section className="no-print mt-8 border-t border-ink pt-3">
@@ -700,7 +709,19 @@ function RecentSheets({
   );
 }
 
-function Sheet({ sheet, prices, engineMs }: { sheet: ProductionSheet; prices: PriceItem[]; engineMs: number | null }) {
+function Sheet({
+  sheet,
+  prices,
+  engineMs,
+  engineLabel,
+  knowledge,
+}: {
+  sheet: ProductionSheet;
+  prices: PriceItem[];
+  engineMs: number | null;
+  engineLabel: string | null;
+  knowledge: string[];
+}) {
   const [copied, setCopied] = useState(false);
   const costing = prices.length > 0 ? costSheet(sheet, prices) : null;
   const checks = validateSheet(sheet);
@@ -723,13 +744,29 @@ function Sheet({ sheet, prices, engineMs }: { sheet: ProductionSheet; prices: Pr
 
   return (
     <article className="sheet-card">
-      <h2 className="text-2xl font-semibold leading-tight">{sheet.dish}</h2>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 className="text-2xl font-semibold leading-tight">{sheet.dish}</h2>
+        <span
+          className="rounded-md border border-ink px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+          title="Recipe lifecycle: a generated sheet is a draft until a kitchen test records its actual yield."
+        >
+          {sheet.status || "Draft"}
+          {(sheet.status || "Draft") === "Draft" ? " · not yet tested" : ""}
+        </span>
+      </div>
       <p className="mt-1 text-sm text-ink-2">
         {sheet.baseYield.portions} portions → <span className="font-semibold text-ink">{sheet.targetYield.covers} covers</span> @ {sheet.targetYield.portionSize}
         {" · "}finished yield <span className="font-semibold text-ink">{sheet.targetYield.finishedYield}</span>
       </p>
-      {engineMs != null && (
-        <p className="no-print mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3">chef-logic engine · {(engineMs / 1000).toFixed(0)} s</p>
+      {(engineLabel || engineMs != null) && (
+        <p
+          className="no-print mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
+          title={knowledge.length ? `Knowledge Pack sections applied: ${knowledge.join(" · ")}` : undefined}
+        >
+          {engineLabel || "chef-logic engine"}
+          {engineMs != null ? ` · ${(engineMs / 1000).toFixed(0)} s` : ""}
+          {knowledge.length ? ` · knowledge pack: ${knowledge.length} sections` : ""}
+        </p>
       )}
 
       <div className="no-print mt-3 flex flex-wrap gap-1.5">
