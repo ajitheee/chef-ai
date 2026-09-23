@@ -14,7 +14,7 @@ export function TopBar({ active, signOut = false }: { active: Section; signOut?:
     );
   return (
     <header className="no-print sticky top-0 z-40 border-b border-bar-2 bg-bar text-bar-ink">
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 lg:px-8">
         <Link href="/" className="text-base font-semibold tracking-tight">
           Digital Chef AI
         </Link>

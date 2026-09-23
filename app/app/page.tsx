@@ -362,7 +362,7 @@ export default function Home() {
     <div className="min-h-screen bg-bg text-ink">
       <TopBar active="scaler" signOut={isSupabaseConfigured()} />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10 print:block">
+      <main className="mx-auto max-w-[100rem] px-4 py-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10 lg:px-8 print:block">
         {/* Left pane — the recipe. Stays put while the sheet on the right scrolls. */}
         <aside className="no-print lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:self-start lg:overflow-y-auto lg:pb-6 lg:pr-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
@@ -452,7 +452,7 @@ export default function Home() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className={LABEL_INLINE}>Quick count</span>
             {[100, 200, 400, 800, 1200].map((c) => (
-              <button key={c} onClick={() => setTargetCovers(String(c))} className={`${CHIP} ${targetCovers === String(c) ? "bg-ink text-card" : ""}`}>
+              <button key={c} onClick={() => setTargetCovers(String(c))} className={chip(targetCovers === String(c))}>
                 {c}
               </button>
             ))}
@@ -603,7 +603,10 @@ const LABEL = "mb-1 block text-[11px] font-bold uppercase tracking-wider text-in
 const LABEL_INLINE = "mr-1 text-[11px] font-bold uppercase tracking-wider text-ink-3";
 const FIELD =
   "w-full border-b border-ink bg-card px-3 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none focus:shadow-[0_1px_0_0_var(--color-ink)]";
-const CHIP = "rounded-md border border-ink px-3 py-1.5 text-xs font-semibold text-ink hover:bg-accent-soft";
+const CHIP = "rounded-md border border-ink px-3 py-1.5 text-xs font-semibold hover:bg-accent-soft";
+const CHIP_ON = "rounded-md border border-ink bg-ink px-3 py-1.5 text-xs font-semibold text-card";
+/** An outlined chip, filled black when it is the active choice. */
+const chip = (on: boolean) => (on ? CHIP_ON : CHIP);
 const PRIMARY = "rounded-md bg-accent font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50";
 const H2 = "text-[11px] font-bold uppercase tracking-wider text-ink";
 const toolCls = (active: boolean) =>
@@ -718,8 +721,6 @@ function Sheet({ sheet, prices, engineMs }: { sheet: ProductionSheet; prices: Pr
     }
   }
 
-  const toggle = (on: boolean) => `${CHIP} ${on ? "bg-ink text-card hover:bg-ink" : ""}`;
-
   return (
     <article className="sheet-card">
       <h2 className="text-2xl font-semibold leading-tight">{sheet.dish}</h2>
@@ -739,9 +740,9 @@ function Sheet({ sheet, prices, engineMs }: { sheet: ProductionSheet; prices: Pr
           </button>
         )}
         <button onClick={() => window.print()} className={CHIP}>Print / PDF</button>
-        <button onClick={() => setShowHaccp((s) => !s)} className={toggle(showHaccp)}>HACCP summary</button>
-        <button onClick={() => setShowPrep((s) => !s)} className={toggle(showPrep)}>Prep list</button>
-        <button onClick={() => setShowSop((s) => !s)} className={toggle(showSop)}>SOP</button>
+        <button onClick={() => setShowHaccp((s) => !s)} className={chip(showHaccp)}>HACCP summary</button>
+        <button onClick={() => setShowPrep((s) => !s)} className={chip(showPrep)}>Prep list</button>
+        <button onClick={() => setShowSop((s) => !s)} className={chip(showSop)}>SOP</button>
       </div>
 
       <Section
