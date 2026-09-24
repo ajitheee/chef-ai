@@ -1,6 +1,7 @@
 "use client";
 
 import { deleteRecipe } from "../actions";
+import { CHIP } from "@/components/paper";
 
 export function DeleteRecipeButton({ id, name }: { id: string; name: string }) {
   return (
@@ -11,9 +12,7 @@ export function DeleteRecipeButton({ id, name }: { id: string; name: string }) {
       }}
     >
       <input type="hidden" name="id" value={id} />
-      <button className="rounded-md border border-line px-4 py-2.5 text-xs font-bold text-ink-2 hover:border-danger hover:text-danger">
-        Delete
-      </button>
+      <button className={`${CHIP} hover:border-danger hover:text-danger`}>Delete</button>
     </form>
   );
 }

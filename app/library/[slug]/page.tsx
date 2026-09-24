@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getRecipeRepository } from "@/lib/data/recipes";
 import { DeleteRecipeButton } from "./delete-button";
 import { TopBar } from "@/components/TopBar";
+import { PRIMARY, Section } from "@/components/paper";
 
 export const dynamic = "force-dynamic";
 
@@ -19,52 +20,36 @@ export default async function RecipeDetailPage({
   return (
     <div className="min-h-screen bg-bg text-ink">
       <TopBar active="library" signOut={repo.kind === "supabase"} />
-      <main className="mx-auto max-w-3xl px-4 py-6">
-        <div className="mb-4">
-          <Link href="/library" className="text-sm font-medium text-ink-2 hover:text-accent">
-            ← Recipe library
-          </Link>
-        </div>
+      <main className="mx-auto max-w-3xl px-4 py-6 lg:px-8">
+        <Link href="/library" className="text-sm font-medium text-ink-2 underline-offset-2 hover:text-ink hover:underline">
+          ← Recipe library
+        </Link>
 
-        <section className="rounded-xl border border-line-2 bg-card p-5 shadow-sm">
-          <h1 className=" text-2xl font-semibold">{recipe.name}</h1>
-
-          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-2">
-            <span>
-              Base <span className="font-semibold text-ink">{recipe.basePortions}</span> portions
-            </span>
-            <span>
-              Portion <span className="font-semibold text-ink">{recipe.portionSize}</span>
-            </span>
-            {recipe.equipment && <span>Equipment: {recipe.equipment}</span>}
-            {recipe.holdingTime && <span>Hold: {recipe.holdingTime}</span>}
-          </div>
-
+        <article className="mt-4">
+          <h1 className="text-2xl font-semibold leading-tight">{recipe.name}</h1>
+          <p className="mt-1 text-sm text-ink-2">
+            Base <span className="font-semibold text-ink">{recipe.basePortions}</span> portions · Portion{" "}
+            <span className="font-semibold text-ink">{recipe.portionSize}</span>
+            {recipe.equipment && <> · Equipment: {recipe.equipment}</>}
+            {recipe.holdingTime && <> · Hold: {recipe.holdingTime}</>}
+          </p>
           {recipe.tags && recipe.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1">
-              {recipe.tags.map((t) => (
-                <span key={t} className="rounded-md bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">
-                  {t}
-                </span>
-              ))}
-            </div>
+            <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-ink-3">{recipe.tags.join(" · ")}</p>
           )}
 
-          <h2 className=" mt-5 mb-1.5 text-base font-semibold">Standardized recipe</h2>
-          <pre className="font-mono-ui whitespace-pre-wrap rounded-lg border border-line bg-bg p-4 text-sm text-ink-2">
-{recipe.recipeText}
-          </pre>
-
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <Link
-              href={`/app?recipe=${encodeURIComponent(recipe.slug)}`}
-              className="inline-block rounded-md bg-accent px-5 py-3 text-sm font-bold text-accent-ink shadow-sm transition"
-            >
+          <div className="mt-4 flex flex-wrap items-center gap-1.5">
+            <Link href={`/app?recipe=${encodeURIComponent(recipe.slug)}`} className={`${PRIMARY} px-4 py-2 text-sm`}>
               Scale this recipe →
             </Link>
             <DeleteRecipeButton id={recipe.id} name={recipe.name} />
           </div>
-        </section>
+
+          <Section title="Standardized recipe">
+            <pre className="font-mono-ui whitespace-pre-wrap border-b border-ink bg-card px-3 py-3 text-sm text-ink">
+{recipe.recipeText}
+            </pre>
+          </Section>
+        </article>
       </main>
     </div>
   );

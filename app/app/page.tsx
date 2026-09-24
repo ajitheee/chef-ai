@@ -13,6 +13,7 @@ import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutritio
 import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/ops";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { TopBar } from "@/components/TopBar";
+import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, Section, Dot } from "@/components/paper";
 
 type ApiReply = {
   ok?: boolean;
@@ -637,20 +638,6 @@ export default function Home() {
   );
 }
 
-/* ---------- Paper look: underlined fields, small-caps labels, rules instead of boxes ---------- */
-const LABEL = "mb-1 block text-[11px] font-bold uppercase tracking-wider text-ink-3";
-const LABEL_INLINE = "mr-1 text-[11px] font-bold uppercase tracking-wider text-ink-3";
-const FIELD =
-  "w-full border-b border-ink bg-card px-3 py-2.5 text-base text-ink placeholder:text-ink-3 focus:outline-none focus:shadow-[0_1px_0_0_var(--color-ink)]";
-const CHIP = "rounded-md border border-ink px-3 py-1.5 text-xs font-semibold hover:bg-accent-soft";
-const CHIP_ON = "rounded-md border border-ink bg-ink px-3 py-1.5 text-xs font-semibold text-card";
-/** An outlined chip, filled black when it is the active choice. */
-const chip = (on: boolean) => (on ? CHIP_ON : CHIP);
-const PRIMARY = "rounded-md bg-accent font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50";
-const H2 = "text-[11px] font-bold uppercase tracking-wider text-ink";
-const FIELD_ERR = FIELD.replace("border-ink bg-card", "border-danger bg-danger-soft").replace("placeholder:text-ink-3", "placeholder:text-danger");
-const fieldCls = (err: boolean) => (err ? FIELD_ERR : FIELD);
-
 /** The inputs the engine needs, and what to tell a cook when one is missing. */
 type Field = "recipeName" | "recipeText" | "basePortions" | "targetCovers" | "portionSize";
 const FIELD_LABEL: Record<Field, string> = {
@@ -671,23 +658,6 @@ const FIELD_HELP: Record<Field, string> = {
 
 const toolCls = (active: boolean) =>
   active ? "text-ink underline underline-offset-4" : "text-ink-2 underline-offset-4 hover:text-ink hover:underline";
-
-/** A ruled section of the sheet: a rule, a small-caps title (with an optional right-hand note), then the content. */
-function Section({ title, aside, className, children }: { title: string; aside?: React.ReactNode; className?: string; children: React.ReactNode }) {
-  return (
-    <section className={`mt-6 border-t border-ink pt-3 ${className || ""}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h3 className={H2}>{title}</h3>
-        {aside}
-      </div>
-      <div className="mt-2">{children}</div>
-    </section>
-  );
-}
-
-function Dot({ cls }: { cls: string }) {
-  return <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-[1px] ${cls}`} />;
-}
 
 function LoadingSkeleton() {
   return (
