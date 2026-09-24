@@ -21,6 +21,8 @@ export default function Planner() {
   const [covers, setCovers] = useState("400");
 
   const [building, setBuilding] = useState(false);
+  // Which plan rows are done / in flight while the plan builds (row ids).
+  const [progress, setProgress] = useState<{ done: string[]; active: string[] } | null>(null);
   const [built, setBuilt] = useState<Built[] | null>(null);
   const [consolidated, setConsolidated] = useState<ConsolidatedLine[]>([]);
   const [demo, setDemo] = useState(false);
@@ -53,40 +55,66 @@ export default function Planner() {
     setBuilding(true);
     setError("");
     setBuilt(null);
+    setProgress({ done: [], active: [] });
     try {
       const notes = (await getStore().notes.list()).map((n) => n.text);
-      const out: Built[] = [];
+      const out: (Built | undefined)[] = new Array(rows.length);
+      const failed: string[] = [];
       let isDemo = false;
-      for (const row of rows) {
+
+      const scaleOne = async (i: number) => {
+        const row = rows[i];
         const rec = recipes.find((r) => r.id === row.recipeId);
-        if (!rec) continue;
-        const res = await fetch("/api/scale", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recipeText: rec.recipeText,
-            basePortions: rec.basePortions,
-            targetCovers: row.covers,
-            portionSize: rec.portionSize,
-            equipment: rec.equipment || "",
-            holdingTime: rec.holdingTime || "",
-            kitchenNotes: notes,
-          }),
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || "Failed to scale " + rec.name);
-        if (data.demo) isDemo = true;
-        const sheet = data.sheet as ProductionSheet;
-        const cost = prices.length ? costSheet(sheet, prices).total : 0;
-        out.push({ dish: rec.name, covers: row.covers, cost, sheet });
+        if (!rec) return;
+        setProgress((p) => p && { ...p, active: [...p.active, row.id] });
+        try {
+          const res = await fetch("/api/scale", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dish: rec.name,
+              recipeText: rec.recipeText,
+              basePortions: rec.basePortions,
+              targetCovers: row.covers,
+              portionSize: rec.portionSize,
+              equipment: rec.equipment || "",
+              holdingTime: rec.holdingTime || "",
+              kitchenNotes: notes,
+            }),
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error || "the engine returned an error");
+          if (data.demo) isDemo = true;
+          const sheet = data.sheet as ProductionSheet;
+          const cost = prices.length ? costSheet(sheet, prices).total : 0;
+          out[i] = { dish: rec.name, covers: row.covers, cost, sheet };
+        } catch (e) {
+          failed.push(`${rec.name} (${e instanceof Error ? e.message : "failed"})`);
+        } finally {
+          setProgress((p) => p && { done: [...p.done, row.id], active: p.active.filter((id) => id !== row.id) });
+        }
+      };
+
+      // Two dishes at a time: each is its own engine call (~40 s), so this
+      // halves the wait without leaning on the API.
+      let next = 0;
+      const worker = async () => {
+        while (next < rows.length) await scaleOne(next++);
+      };
+      await Promise.all([worker(), worker()]);
+
+      const ok = out.filter((b): b is Built => !!b);
+      if (failed.length > 0) setError(`Couldn't scale ${failed.length === 1 ? "one dish" : `${failed.length} dishes`}: ${failed.join("; ")}. The plan below covers the rest.`);
+      if (ok.length > 0) {
+        setBuilt(ok);
+        setConsolidated(consolidatePullLists(ok.map((b) => b.sheet)));
+        setDemo(isDemo);
       }
-      setBuilt(out);
-      setConsolidated(consolidatePullLists(out.map((b) => b.sheet)));
-      setDemo(isDemo);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setBuilding(false);
+      setProgress(null);
     }
   }
 
@@ -145,7 +173,13 @@ export default function Planner() {
                         <span>
                           <span className="font-semibold">{rec?.name}</span> · {row.covers} covers
                         </span>
-                        <button onClick={() => removeRow(row.id)} className="px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
+                        {progress ? (
+                          <span className="text-xs font-semibold text-ink-3">
+                            {progress.done.includes(row.id) ? "done" : progress.active.includes(row.id) ? "scaling…" : "queued"}
+                          </span>
+                        ) : (
+                          <button onClick={() => removeRow(row.id)} className="px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
+                        )}
                       </li>
                     );
                   })}
@@ -153,8 +187,11 @@ export default function Planner() {
               )}
 
               <button onClick={build} disabled={building || rows.length === 0} className={`${PRIMARY} mt-5 w-full py-3.5 text-base`}>
-                {building ? "Building plan…" : "Build production plan →"}
+                {building && progress ? `Scaling ${Math.min(progress.done.length + 1, rows.length)} of ${rows.length}…` : "Build production plan →"}
               </button>
+              {building && (
+                <p className="mt-2 text-xs text-ink-3">Each dish is one engine call of about 40 seconds; two run at a time. Keep this page open.</p>
+              )}
               {error && <p className={`${NOTE_DANGER} mt-3`}>{error}</p>}
             </>
           )}
@@ -166,7 +203,9 @@ export default function Planner() {
             <div className="no-print">
               <h2 className={H2}>Production plan</h2>
               <p className="mt-2 border-t border-ink pt-3 text-sm text-ink-2">
-                Add dishes with today&apos;s covers and tap <span className="font-semibold text-ink">Build production plan</span>. The consolidated purchasing list and the food cost appear here.
+                {building && progress
+                  ? `Scaling ${progress.done.length} of ${rows.length} dishes done…`
+                  : <>Add dishes with today&apos;s covers and tap <span className="font-semibold text-ink">Build production plan</span>. The consolidated purchasing list and the food cost appear here.</>}
               </p>
             </div>
           ) : (
