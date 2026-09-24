@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { ZodError } from "zod";
 import {
   SYSTEM_PROMPT,
   ENGINE_VERSION,
@@ -133,6 +134,10 @@ export function engineFailure(e: unknown): string | null {
 
 /** A readable message for any engine error a route can't recover from (never the raw JSON blob). */
 export function friendlyEngineError(e: unknown, fallback: string): string {
+  if (e instanceof ZodError) {
+    // Input validation: the schema messages are already plain sentences.
+    return e.issues.map((i) => i.message).join(" ");
+  }
   if (e instanceof Anthropic.APIError) {
     const raw = e.message || "";
     const m = raw.match(/"message"\s*:\s*"([^"]+)"/);

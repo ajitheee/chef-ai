@@ -24,6 +24,7 @@ type ApiReply = {
   ms?: number;
   engine?: string;
   knowledge?: string[];
+  fields?: string[];
 };
 
 /** Parse an API reply; a platform error page (timeout, crash) becomes one plain sentence, not a JSON parser error. */
@@ -56,6 +57,10 @@ export default function Home() {
   const [history, setHistory] = useState<SheetHistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Field-level validation: what is missing, in plain words, on the field itself.
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
+  const fieldRefs = useRef<Partial<Record<Field, HTMLInputElement | HTMLTextAreaElement | null>>>({});
+  const clearFieldError = (f: Field) => setFieldErrors((m) => (m[f] ? { ...m, [f]: undefined } : m));
   const [sheet, setSheet] = useState<ProductionSheet | null>(null);
   const [demo, setDemo] = useState(false);
   const [engineNote, setEngineNote] = useState("");
@@ -203,11 +208,35 @@ export default function Home() {
     reader.readAsDataURL(file);
   }
 
+  /** Check the inputs before calling the engine: highlight + focus what is missing, in plain words. */
+  function checkInputs(required: Field[]): boolean {
+    const isPositive = (s: string) => /^\s*\d+([.,]\d+)?\s*$/.test(s) && Number(s.replace(",", ".")) > 0;
+    const missing = required.filter((f) =>
+      f === "recipeName" ? !recipeName.trim()
+        : f === "recipeText" ? !recipeText.trim() && !imageData
+        : f === "basePortions" ? !isPositive(basePortions)
+        : f === "targetCovers" ? !isPositive(targetCovers)
+        : !portionSize.trim()
+    );
+    setFieldErrors(Object.fromEntries(missing.map((f) => [f, FIELD_HELP[f]])));
+    if (missing.length === 0) return true;
+    setError(`Missing: ${missing.map((f) => FIELD_LABEL[f]).join(", ")} — see the highlighted field${missing.length > 1 ? "s" : ""}.`);
+    const first = fieldRefs.current[missing[0]];
+    first?.focus();
+    first?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return false;
+  }
+
+  /** The server names the fields it rejected — highlight them the same way. */
+  function showFieldErrors(fields: string[] | undefined) {
+    const known = (fields || []).filter((f): f is Field => f in FIELD_HELP);
+    if (known.length === 0) return;
+    setFieldErrors(Object.fromEntries(known.map((f) => [f, FIELD_HELP[f]])));
+    fieldRefs.current[known[0]]?.focus();
+  }
+
   async function onSave() {
-    if (!recipeName.trim() || !recipeText.trim() || !basePortions || !portionSize) {
-      setError("To save: add a recipe name, the recipe, base portions, and portion size.");
-      return;
-    }
+    if (!checkInputs(["recipeName", "recipeText", "basePortions", "portionSize"])) return;
     setError("");
     try {
       setSaved(
@@ -252,10 +281,7 @@ export default function Home() {
   }
 
   async function onScale() {
-    if (!recipeText.trim() && !imageData) {
-      setError("Paste a recipe or add a photo of one.");
-      return;
-    }
+    if (!checkInputs(["recipeText", "basePortions", "targetCovers", "portionSize"])) return;
     setLoading(true);
     setError("");
     setSheet(null);
@@ -276,7 +302,10 @@ export default function Home() {
         }),
       });
       const data = await readJson(res);
-      if (!data.ok) throw new Error(data.error || "Failed to scale.");
+      if (!data.ok) {
+        showFieldErrors(data.fields);
+        throw new Error(data.error || "Failed to scale.");
+      }
       const s = data.sheet as ProductionSheet;
       setSheet(s);
       setDemo(!!data.demo);
@@ -415,12 +444,12 @@ export default function Home() {
           )}
 
           <div className="mt-4">
-            <label className={LABEL}>Recipe name</label>
-            <input className={`${FIELD} font-semibold`} placeholder="Chicken Jambalaya" value={recipeName} onChange={(e) => setRecipeName(e.target.value)} />
+            <label className={LABEL}>Recipe name<FieldNote msg={fieldErrors.recipeName} /></label>
+            <input ref={(el) => { fieldRefs.current.recipeName = el; }} className={`${fieldCls(!!fieldErrors.recipeName)} font-semibold`} placeholder="Chicken Jambalaya" value={recipeName} onChange={(e) => { setRecipeName(e.target.value); clearFieldError("recipeName"); }} />
           </div>
           <div className="mt-3">
-            <label className={LABEL}>Recipe — as written on the card</label>
-            <textarea className={`${FIELD} h-44 font-mono-ui text-sm`} placeholder="Paste a standardized recipe here… (or add a photo below)" value={recipeText} onChange={(e) => setRecipeText(e.target.value)} />
+            <label className={LABEL}>Recipe — as written on the card<FieldNote msg={fieldErrors.recipeText} /></label>
+            <textarea ref={(el) => { fieldRefs.current.recipeText = el; }} className={`${fieldCls(!!fieldErrors.recipeText)} h-44 font-mono-ui text-sm`} placeholder="Paste a standardized recipe here… (or add a photo below)" value={recipeText} onChange={(e) => { setRecipeText(e.target.value); clearFieldError("recipeText"); }} />
           </div>
           <div className="mt-2 flex items-center gap-3">
             <label className={`${CHIP} cursor-pointer`}>
@@ -437,16 +466,16 @@ export default function Home() {
 
           <div className="mt-3 grid grid-cols-3 gap-3">
             <div>
-              <label className={LABEL}>Base portions</label>
-              <input className={FIELD} inputMode="numeric" placeholder="50" value={basePortions} onChange={(e) => setBasePortions(e.target.value)} />
+              <label className={LABEL}>Base portions<FieldNote msg={fieldErrors.basePortions} /></label>
+              <input ref={(el) => { fieldRefs.current.basePortions = el; }} className={fieldCls(!!fieldErrors.basePortions)} inputMode="numeric" placeholder="50" value={basePortions} onChange={(e) => { setBasePortions(e.target.value); clearFieldError("basePortions"); }} />
             </div>
             <div>
-              <label className={LABEL}>Target covers</label>
-              <input className={FIELD} inputMode="numeric" placeholder="850" value={targetCovers} onChange={(e) => setTargetCovers(e.target.value)} />
+              <label className={LABEL}>Target covers<FieldNote msg={fieldErrors.targetCovers} /></label>
+              <input ref={(el) => { fieldRefs.current.targetCovers = el; }} className={fieldCls(!!fieldErrors.targetCovers)} inputMode="numeric" placeholder="850" value={targetCovers} onChange={(e) => { setTargetCovers(e.target.value); clearFieldError("targetCovers"); }} />
             </div>
             <div>
-              <label className={LABEL}>Portion size</label>
-              <input className={FIELD} placeholder="10 oz" value={portionSize} onChange={(e) => setPortionSize(e.target.value)} />
+              <label className={LABEL}>Portion size<FieldNote msg={fieldErrors.portionSize} /></label>
+              <input ref={(el) => { fieldRefs.current.portionSize = el; }} className={fieldCls(!!fieldErrors.portionSize)} placeholder="10 oz" value={portionSize} onChange={(e) => { setPortionSize(e.target.value); clearFieldError("portionSize"); }} />
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Equipment</label>
@@ -461,7 +490,7 @@ export default function Home() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             <span className={LABEL_INLINE}>Quick count</span>
             {[100, 200, 400, 800, 1200].map((c) => (
-              <button key={c} onClick={() => setTargetCovers(String(c))} className={chip(targetCovers === String(c))}>
+              <button key={c} onClick={() => { setTargetCovers(String(c)); clearFieldError("targetCovers"); }} className={chip(targetCovers === String(c))}>
                 {c}
               </button>
             ))}
@@ -618,6 +647,29 @@ const CHIP_ON = "rounded-md border border-ink bg-ink px-3 py-1.5 text-xs font-se
 const chip = (on: boolean) => (on ? CHIP_ON : CHIP);
 const PRIMARY = "rounded-md bg-accent font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50";
 const H2 = "text-[11px] font-bold uppercase tracking-wider text-ink";
+const FIELD_ERR = FIELD.replace("border-ink bg-card", "border-danger bg-danger-soft");
+const fieldCls = (err: boolean) => (err ? FIELD_ERR : FIELD);
+
+/** The inputs the engine needs, and what to tell a cook when one is missing. */
+type Field = "recipeName" | "recipeText" | "basePortions" | "targetCovers" | "portionSize";
+const FIELD_LABEL: Record<Field, string> = {
+  recipeName: "Recipe name",
+  recipeText: "Recipe",
+  basePortions: "Base portions",
+  targetCovers: "Target covers",
+  portionSize: "Portion size",
+};
+const FIELD_HELP: Record<Field, string> = {
+  recipeName: "Give the recipe a name, e.g. Chicken Jambalaya.",
+  recipeText: "Paste the recipe as written on the card, or add a photo of it.",
+  basePortions: "How many portions does the card make? A number, e.g. 50.",
+  targetCovers: "How many covers do you need today? A number, e.g. 400.",
+  portionSize: "What is one portion? e.g. 6 oz, or 2 tacos.",
+};
+
+function FieldNote({ msg }: { msg?: string }) {
+  return msg ? <span className="ml-2 normal-case tracking-normal text-danger">— {msg}</span> : null;
+}
 const toolCls = (active: boolean) =>
   active ? "text-ink underline underline-offset-4" : "text-ink-2 underline-offset-4 hover:text-ink hover:underline";
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { scaleRecipe, engineFailure, friendlyEngineError } from "@/lib/engine/claude";
 import { ScaleInputSchema, type ScaleInput, type ProductionSheet } from "@/lib/engine/schema";
 import { isDemoMode, demoScale, demoScaleFromText } from "@/lib/engine/demo";
@@ -46,6 +47,8 @@ export async function POST(req: NextRequest) {
     }
   } catch (e) {
     const message = friendlyEngineError(e, "Something went wrong scaling the recipe.");
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    // Name the fields that failed so the form can highlight them.
+    const fields = e instanceof ZodError ? e.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean) : undefined;
+    return NextResponse.json({ ok: false, error: message, fields }, { status: 400 });
   }
 }
