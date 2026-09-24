@@ -62,3 +62,22 @@ HACCP, prep list, SOP — and fails on anything that throws or breaks the schema
   recipes, kitchen memory, price book, sheet history — lives in his rows and
   follows his login to any device. Without it, the same screens save per
   device in the browser (Backup/Restore moves them).
+
+## Custom domain
+
+The app never hard-codes its host (sign-in links use the page's own origin), so a
+domain is three settings and no code:
+
+1. **Vercel → project → Settings → Domains → Add.** Easiest: buy the name right
+   there — Vercel registers it and sets the DNS itself. If the name lives at
+   another registrar, add the records Vercel shows: apex `A 76.76.21.21`, and
+   `www` → `CNAME cname.vercel-dns.com`. Add both `yourdomain.com` and
+   `www.yourdomain.com`; Vercel redirects one to the other.
+2. **Supabase → Authentication → URL Configuration.** Site URL =
+   `https://yourdomain.com`; Redirect URLs: add `https://yourdomain.com/**`.
+   Keep the old `.vercel.app` entries until everyone has switched.
+3. **Check.** `https://yourdomain.com/api/health` → `"ok": true`; sign out and in
+   once (the emailed links now point at the new domain); print one sheet — the
+   footer's Terms link should open `https://yourdomain.com/terms`.
+
+The `.vercel.app` address keeps working alongside the domain.

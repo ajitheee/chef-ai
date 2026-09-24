@@ -174,8 +174,9 @@ export default function Landing() {
       </main>
 
       <footer className="border-t border-ink">
-        <div className="mx-auto max-w-5xl px-4 py-6 text-[11px] font-bold uppercase tracking-wider text-ink-3 lg:px-8">
-          Digital Chef AI — production intelligence for high-volume kitchens
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-[11px] font-bold uppercase tracking-wider text-ink-3 lg:px-8">
+          <span>Digital Chef AI — production intelligence for high-volume kitchens</span>
+          <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms of use</a>
         </div>
       </footer>
     </div>

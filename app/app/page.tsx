@@ -1037,6 +1037,11 @@ function Sheet({
       <Block title="Assumptions" items={sheet.assumptions} muted />
       {sheet.allergenFlags.length > 0 && <Block title="Allergen flags" items={sheet.allergenFlags} />}
       {sheet.safetyFlags.length > 0 && <Block title="Safety & cooling" items={sheet.safetyFlags} />}
+
+      <p className="mt-8 border-t border-line pt-3 text-[11px] text-ink-3">
+        Digital Chef AI production sheet · {sheet.status || "Draft"} · Quantities, times, temperatures and allergen labels must be verified by the kitchen before service.{" "}
+        <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms of use</a>
+      </p>
     </article>
   );
 }

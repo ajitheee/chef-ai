@@ -121,6 +121,9 @@ export default function LoginPage() {
             </p>
           </>
         )}
+        <p className="mt-6 text-xs text-ink-3">
+          <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms of use</a>
+        </p>
       </form>
     </div>
   );
