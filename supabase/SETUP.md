@@ -31,8 +31,17 @@ what protects the data, and it's already on every table.
 
 ## Notes
 
-- **Free projects pause after ~7 days of no activity.** If the dashboard looks
-  "closed," it's just paused — open the project and hit **Restore/Resume**.
+- **Free projects pause after ~7 days of no activity.** A daily Vercel cron
+  (`vercel.json`) calls `/api/health`, which runs a real one-row query — that
+  counts as activity and keeps the project awake. If it ever pauses anyway,
+  open the project and hit **Restore/Resume**; `/api/health` then reports
+  `database: "unreachable"` until it is back.
+- **Adding the chef (sign-ups are off):** **Authentication → Users → Add user**
+  → *Create new user* → his email + a starting password, tick **Auto Confirm
+  User**. Tell him the password in person; he changes it with **Set / reset
+  password** on the login page whenever he likes. Do not rely on the emailed
+  links for the first login — Supabase's built-in mailer is rate-limited and
+  often lands in spam.
 - **Auth** (one login per chef) is wired: `/login` takes email + password or an
   emailed sign-in link. Create the chef's user under **Authentication → Users →
   Add user**, and add `<your-url>/auth/callback` to **Authentication → URL
