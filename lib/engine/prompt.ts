@@ -21,7 +21,8 @@ export const SYSTEM_PROMPT = `${MASTER_PROMPT}\n\n${APP_CONTRACT}`;
 
 export function buildUserContent(
   input: ScaleInput,
-  knowledge: KnowledgeSection[] = []
+  knowledge: KnowledgeSection[] = [],
+  portionLine?: string
 ): Anthropic.MessageParam["content"] {
   const lines: string[] = [
     `Scale this standardized recipe for dining-hall service.`,
@@ -49,6 +50,8 @@ export function buildUserContent(
   }
 
   lines.push(`TARGET: ${input.targetCovers} covers at ${input.portionSize} per portion.`);
+  // Finished-yield figures computed in code (portion.ts) — the approved numbers for this job.
+  if (portionLine) lines.push(portionLine);
   if (input.equipment && input.equipment.trim()) {
     lines.push(`EQUIPMENT AVAILABLE: ${input.equipment.trim()}`);
   }

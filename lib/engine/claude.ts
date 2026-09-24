@@ -18,6 +18,8 @@ import {
   type VariationsResult,
 } from "./schema";
 import { retrieveKnowledge, KNOWLEDGE_PACK_VERSION } from "./brain/retrieve";
+import { parseRecipeText, cardIngredients } from "./demo";
+import { derivePortion, applyPortion } from "./portion";
 
 // Default model — override with ANTHROPIC_MODEL in .env.local if your key
 // has access to a different Claude version.
@@ -73,6 +75,13 @@ export async function scaleRecipe(
 
   const client = new Anthropic({ apiKey, maxRetries: 1 });
   const knowledge = retrieveKnowledge(input);
+  // The finished-yield figures are computed here, not by the model (see portion.ts).
+  const derivation = derivePortion({
+    ingredients: input.recipeText ? cardIngredients(parseRecipeText(input.recipeText).ingredients) : [],
+    basePortions: input.basePortions,
+    targetCovers: input.targetCovers,
+    portionSize: input.portionSize,
+  });
 
   const response = await client.messages.create({
     model: MODEL,
@@ -86,7 +95,7 @@ export async function scaleRecipe(
       },
     ],
     tool_choice: { type: "tool", name: "emit_production_sheet" },
-    messages: [{ role: "user", content: buildUserContent(input, knowledge.sections) }],
+    messages: [{ role: "user", content: buildUserContent(input, knowledge.sections, derivation?.promptLine) }],
   }, { timeout: ENGINE_TIMEOUT_MS });
 
   const block = response.content.find((b) => b.type === "tool_use");
@@ -98,7 +107,7 @@ export async function scaleRecipe(
   if (!parsed.success) {
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
-  const sheet = parsed.data;
+  const sheet = applyPortion(parsed.data, derivation);
   sheet.status = sheet.status || "Draft"; // recipe lifecycle: generated, not yet tested
   sheet.source = "engine";
   sheet.assumptions = [

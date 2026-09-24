@@ -1,8 +1,8 @@
 import type { ProductionSheet } from "./schema";
 import { COOK_YIELDS, toGrams } from "./yield";
 
-/** Which standard cooking yield applies to a protein line (first match wins). */
-const PROTEIN_COOK: [RegExp, string][] = [
+/** Which standard cooking yield applies to a protein line (first match wins). Shared with portion.ts. */
+export const PROTEIN_COOK: [RegExp, string][] = [
   [/ground (beef|pork|turkey|chicken|lamb|meat)|sausage|chorizo|meatball|meatloaf|kofta/i, "ground meat, browned"],
   [/pork shoulder|pork butt|pernil|carnitas|pulled pork|al pastor/i, "pork shoulder (braise/roast)"],
   [/\bpork\b/i, "pork loin/chops"],
@@ -73,6 +73,10 @@ function toNum(tok: string): number {
  * volume). A unit binds to the number RIGHT BEFORE it — "2 tacos (≈5 oz pork
  * fill per serving)" is 5 oz, not 2 oz. Unknown units return null.
  */
+export function parseQuantity(s: string): { n: number; family: Family; base: number } | null {
+  return parseQ(s);
+}
+
 function parseQ(s: string): { n: number; family: Family; base: number } | null {
   if (!s) return null;
   const lower = s.toLowerCase().replace(/,/g, "");
@@ -92,7 +96,7 @@ function parseQ(s: string): { n: number; family: Family; base: number } | null {
 }
 
 /** How many "number + known unit" pairs a string carries ("5 oz pork + 1/2 cup beans" = 2). */
-function knownPairs(s: string): number {
+export function knownPairs(s: string): number {
   const lower = (s || "").toLowerCase().replace(/,/g, "");
   const pair = /(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s*([a-z]+)/g;
   let n = 0;

@@ -10,7 +10,8 @@
     "sweep": "tsx scripts/sweep.ts",
     "referee": "tsx scripts/referee-check.ts",
     "brain": "tsx scripts/build-brain.ts",
-    "brain:check": "tsx scripts/brain-check.ts"
+    "brain:check": "tsx scripts/brain-check.ts",
+    "portion:check": "tsx scripts/portion-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

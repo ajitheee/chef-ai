@@ -2,6 +2,7 @@ import type { ProductionSheet, VariationsResult } from "./schema";
 import { detectSafety, isFunctionalChemistry } from "./safety";
 import { applyPurchasing } from "./yield";
 import { detectAllergens } from "./validate";
+import { derivePortion } from "./portion";
 
 const YIELD_ASSUMPTION =
   "Pull list converts recipe (EP) amounts to as-purchased (AP) order quantities using standard yield + density tables — verify against your kitchen's actual yields.";
@@ -225,7 +226,7 @@ function classify(name: string): { role: string; damp: number; kind?: "taste" | 
   return { role: "structural", damp: 1 };
 }
 
-type ParsedLine = { name: string; num: number | null; unit: string; raw: string };
+export type ParsedLine = { name: string; num: number | null; unit: string; raw: string };
 
 const KNOWN_UNIT =
   /^(oz|ounces?|lbs?|pounds?|g|grams?|kg|cups?|c|tbsp|tablespoons?|tsp|teaspoons?|qts?|quarts?|pts?|pints?|gal|gallons?|fl|ml|l|liters?|litres?|each|ea|bunch(?:es)?|cans?|cases?|bags?|heads?|cloves?|sprigs?|slices?|pieces?|pcs?|dozen|sticks?|pkgs?|packages?|box(?:es)?|jars?|bottles?|sheets?|stalks?|ears?|links?)$/i;
@@ -295,7 +296,7 @@ type ParsedRecipe = { dish: string | null; ingredients: ParsedLine[]; method: st
  * safety notes are skipped); METHOD lines become the procedure. Plain pastes
  * ("- 2 lb x" lines, then "Method: ...") still work as before.
  */
-function parseRecipeText(text: string): ParsedRecipe {
+export function parseRecipeText(text: string): ParsedRecipe {
   const lines = text.split("\n").map((l) => l.replace(/\r$/, "").trim());
   const hasSections = lines.some((l) => sectionOf(l) === "ingredients");
   let section: Section = hasSections ? "other" : "head";
@@ -429,16 +430,22 @@ export function demoScaleFromText(
     };
   });
 
-  // Finished yield from portion size if it contains oz.
-  const ozMatch = portionSize.match(/(\d+(?:\.\d+)?)\s*oz/i);
-  const finishedYield = ozMatch ? `${round((covers * Number(ozMatch[1]) * 1.04) / 16)} lb (+4% buffer)` : "—";
+  // The finished-yield figures, the same derivation the live engine is anchored to.
+  const derivation = derivePortion({
+    ingredients: cardIngredients(ingLines),
+    basePortions: base,
+    targetCovers: covers > 0 ? covers : base,
+    portionSize,
+  });
+  const finishedYield = derivation ? derivation.finishedYield : "—";
 
   return {
     dish,
     mode: funcChem ? "safety_chemistry" : "savory",
     baseYield: { portions: base, portionSize },
-    targetYield: { covers: covers > 0 ? covers : base, portionSize, finishedYield },
+    targetYield: { covers: covers > 0 ? covers : base, portionSize: derivation ? derivation.portionSize : portionSize, finishedYield },
     assumptions: [
+      ...(derivation?.assumption ? [derivation.assumption] : []),
       ...(notesApplied > 0 ? [`Noted ${notesApplied} kitchen correction${notesApplied > 1 ? "s" : ""} (applied by the live engine).`] : []),
       ...(funcChem ? ["Detected a brine/cure/preservation prep — salt & acid scaled LINEARLY to hold the safety ratio, not dampened."] : []),
       YIELD_ASSUMPTION,
@@ -470,6 +477,11 @@ export function demoScaleFromText(
         ? [`Possible allergens detected: ${[...allergens].join(", ")}. Verify supplier labels and cross-contact before claiming allergen-free.`]
         : [],
   };
+}
+
+/** The card's quantified lines as name + quantity text, for the portion derivation. */
+export function cardIngredients(lines: ParsedLine[]): { name: string; qty: string }[] {
+  return lines.filter((p) => p.num !== null).map((p) => ({ name: p.name, qty: `${p.num} ${p.unit}`.trim() }));
 }
 
 /** Back-compat: the default 800-cover sheet. */
