@@ -1,7 +1,7 @@
 import type { ProductionSheet, VariationsResult } from "./schema";
 import { detectSafety, isFunctionalChemistry } from "./safety";
 import { applyPurchasing } from "./yield";
-import { detectAllergens } from "./validate";
+import { detectAllergens, detectLabelDependent } from "./validate";
 import { derivePortion } from "./portion";
 
 const YIELD_ASSUMPTION =
@@ -393,6 +393,7 @@ export function demoScaleFromText(
   const mult = (covers > 0 ? covers : base) / base;
   // Same allergen list as the referee, so the sheet's flags and the check agree.
   const allergens = new Set<string>(detectAllergens(ingLines.map((p) => p.name).join(" ")));
+  const labelHits = detectLabelDependent(ingLines.map((p) => p.name).join(" "));
   // Brine/cure/pickle/ferment = functional chemistry -> salt & acid scale LINEARLY (never dampen).
   const funcChem = isFunctionalChemistry(recipeText);
   const safetyRules = detectSafety(recipeText);
@@ -472,10 +473,10 @@ export function demoScaleFromText(
       ...safetyRules.map((r) => `[${r.domain}] ${r.rule} (${r.source})`),
       "Hold hot at 135F+; cool leftovers in shallow pans (135->70F within 2 h, 70->41F within 4 more h). Verify against USDA/ServSafe.",
     ],
-    allergenFlags:
-      allergens.size > 0
-        ? [`Possible allergens detected: ${[...allergens].join(", ")}. Verify supplier labels and cross-contact before claiming allergen-free.`]
-        : [],
+    allergenFlags: [
+      ...(allergens.size > 0 ? [`Possible allergens detected: ${[...allergens].join(", ")}. Verify supplier labels and cross-contact before claiming allergen-free.`] : []),
+      ...labelHits.map((h) => `Verify label — ${h.product}: typically contains ${h.allergens.join(", ")}.`),
+    ],
   };
 }
 

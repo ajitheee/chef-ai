@@ -1,5 +1,5 @@
 /** Referee regression: portion strings the live engine actually writes + allergen precision. Run: npx tsx scripts/referee-check.ts */
-import { validateSheet, detectAllergens } from "../lib/engine/validate";
+import { validateSheet, detectAllergens, detectLabelDependent } from "../lib/engine/validate";
 import type { ProductionSheet } from "../lib/engine/schema";
 
 function sheet(portionSize: string, finishedYield: string, covers = 400): ProductionSheet {
@@ -45,4 +45,20 @@ for (const [text, want] of allergenCases) {
   if (!ok) bad++;
   console.log(`${ok ? "ok  " : "FAIL"} [${got.join(", ")}] (want [${want.join(", ")}])  "${text.slice(0, 60)}"`);
 }
+
+console.log("\nlabel-dependent products:");
+const labelCases: [string, string[]][] = [
+  ["romaine, basil pesto, croutons, parmesan", ["pesto", "croutons"]],
+  ["chicken thighs, teriyaki sauce, scallions", ["teriyaki sauce"]],
+  ["olive oil, tomato, basil, kosher salt", []],
+  ["herb ranch dressing, iceberg, bacon", ["ranch dressing"]],
+  ["pork shoulder, achiote paste, pineapple, corn tortillas", []],
+];
+for (const [text, want] of labelCases) {
+  const got = detectLabelDependent(text.toLowerCase()).map((h) => h.product);
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  console.log(`${ok ? "ok  " : "FAIL"} [${got.join(", ")}] (want [${want.join(", ")}])  "${text}"`);
+  if (!ok) bad++;
+}
+
 process.exit(bad ? 1 : 0);

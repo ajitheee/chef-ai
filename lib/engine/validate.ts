@@ -142,6 +142,60 @@ const ALLERGENS: Record<string, RegExp> = {
   sesame: /\b(sesame|tahini)\b/i,
 };
 
+/**
+ * Prepared products whose allergens depend on the label. Typical contents,
+ * kept apart from ALLERGENS so the sheet says "verify label", not "contains":
+ * a nut-free pesto exists, but a cook must check the tub.
+ */
+const LABEL_DEPENDENT: [RegExp, string, string[]][] = [
+  [/\bpesto\b/i, "pesto", ["tree nut", "milk/dairy"]],
+  [/\bhummus\b/i, "hummus", ["sesame"]],
+  [/\bcaesar\b/i, "Caesar dressing", ["egg", "fish", "milk/dairy"]],
+  [/\branch\b/i, "ranch dressing", ["milk/dairy", "egg"]],
+  [/\bteriyaki\b/i, "teriyaki sauce", ["soy", "wheat/gluten"]],
+  [/\bhoisin\b/i, "hoisin sauce", ["soy", "wheat/gluten"]],
+  [/\bponzu\b/i, "ponzu", ["soy", "wheat/gluten", "fish"]],
+  [/\b(?:ton)?katsu sauce\b/i, "katsu sauce", ["soy", "wheat/gluten"]],
+  [/\boyster sauce\b/i, "oyster sauce", ["shellfish", "soy"]],
+  [/\bgochujang\b|\bdoenjang\b|\bssamjang\b/i, "Korean fermented paste", ["soy", "wheat/gluten"]],
+  [/\bkimchi\b/i, "kimchi", ["fish", "shellfish"]],
+  [/\bcurry paste\b/i, "curry paste", ["shellfish"]],
+  [/\bshrimp paste\b|\bbelacan\b|\bterasi\b/i, "shrimp paste", ["shellfish"]],
+  [/\bxo sauce\b/i, "XO sauce", ["shellfish"]],
+  [/\bfurikake\b/i, "furikake", ["sesame", "fish"]],
+  [/\bchili crisp\b|\bchili oil\b/i, "chili crisp / chili oil", ["soy", "sesame"]],
+  [/\bnuoc cham\b|\bnuoc mam\b/i, "nuoc cham", ["fish"]],
+  [/\bmole\b/i, "mole", ["tree nut", "peanut", "sesame", "wheat/gluten"]],
+  [/\bromesco\b/i, "romesco", ["tree nut"]],
+  [/\bsatay\b/i, "satay sauce", ["peanut"]],
+  [/\btzatziki\b|\braita\b|\balfredo\b|\bb[ée]chamel\b/i, "dairy-based sauce", ["milk/dairy"]],
+  [/\bgravy\b/i, "gravy", ["wheat/gluten"]],
+  [/\bcroutons?\b/i, "croutons", ["wheat/gluten"]],
+  [/\bbreaded\b|\bbattered\b|\btempura\b/i, "breaded / battered product", ["wheat/gluten"]],
+  [/\bwontons?\b|\bdumpling wrappers?\b|\bspring roll wrappers?\b|\bpot ?stickers?\b/i, "wrappers", ["wheat/gluten", "egg"]],
+  [/\b(?:chicken|beef|vegetable|veg|soup) base\b|\bbouillon\b/i, "soup base / bouillon", ["soy", "wheat/gluten", "milk/dairy"]],
+  [/\bimitation crab\b|\bsurimi\b|\bkrab\b/i, "imitation crab", ["fish", "egg", "wheat/gluten"]],
+  [/\bmalt vinegar\b/i, "malt vinegar", ["wheat/gluten"]],
+];
+
+export type LabelHit = { product: string; allergens: string[] };
+
+/** Prepared products in the text whose allergens must be read off the label. */
+export function detectLabelDependent(text: string): LabelHit[] {
+  const seen = new Set<string>();
+  const out: LabelHit[] = [];
+  for (const [re, product, allergens] of LABEL_DEPENDENT) {
+    if (re.test(text) && !seen.has(product)) {
+      seen.add(product);
+      out.push({ product, allergens });
+    }
+  }
+  return out;
+}
+
+/** "pesto (tree nut, milk/dairy); croutons (wheat/gluten)" */
+export const labelHitsText = (hits: LabelHit[]) => hits.map((h) => `${h.product} (${h.allergens.join(", ")})`).join("; ");
+
 /** Common allergens implied by ingredient names (shared with the HACCP builder). */
 export function detectAllergens(text: string): string[] {
   return Object.keys(ALLERGENS).filter((a) => ALLERGENS[a].test(text));
@@ -210,12 +264,15 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
   // Ingredient names only — a dish called "Chickpea 'Tuna' Salad" contains no fish.
   const text = sheet.ingredients.map((i) => i.item).join(" ").toLowerCase();
   const detected = detectAllergens(text);
-  if (detected.length === 0) {
+  const label = detectLabelDependent(text);
+  const found = [...detected, ...label.map((h) => h.product)];
+  const labelNote = label.length ? ` Verify labels: ${labelHitsText(label)}.` : "";
+  if (found.length === 0) {
     checks.push({ label: "Allergen check", status: "info", detail: "No common allergens detected in the ingredient names." });
   } else if (sheet.allergenFlags.length > 0) {
-    checks.push({ label: "Allergen check", status: "pass", detail: `Detected ${detected.join(", ")} — sheet carries ${sheet.allergenFlags.length} allergen flag(s).` });
+    checks.push({ label: "Allergen check", status: "pass", detail: `Detected ${found.join(", ")} — sheet carries ${sheet.allergenFlags.length} allergen flag(s).${labelNote}` });
   } else {
-    checks.push({ label: "Allergen check", status: "warn", detail: `Detected ${detected.join(", ")} in ingredients, but the sheet has no allergen flags.` });
+    checks.push({ label: "Allergen check", status: "warn", detail: `Detected ${found.join(", ")} in ingredients, but the sheet has no allergen flags.${labelNote}` });
   }
 
   // 5 — Cooked-protein cross-check (INFO only): the biggest raw protein line ×
