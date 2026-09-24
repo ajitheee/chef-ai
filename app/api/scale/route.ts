@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
     const input = ScaleInputSchema.parse(body);
 
     if (isDemoMode()) {
-      return NextResponse.json({ ok: true, sheet: demoSheetFor(input), demo: true });
+      const sheet = demoSheetFor(input);
+      sheet.source = "estimate";
+      return NextResponse.json({ ok: true, sheet, demo: true });
     }
 
     const t0 = Date.now();
@@ -40,12 +42,15 @@ export async function POST(req: NextRequest) {
       if (!reason) throw e;
       // Never leave the kitchen with an error: fall back to the built-in
       // scaler and say plainly why. The banner in the UI carries `note`.
+      console.error("[scale] engine unavailable, built-in estimate served:", reason, "—", e instanceof Error ? e.message : e);
       const sheet = demoSheetFor(input);
+      sheet.source = "estimate";
       const note = `${reason} Showing the built-in estimate instead — a rough linear+dampening scale, not the chef-logic engine.`;
       sheet.assumptions = [`LIVE ENGINE UNAVAILABLE — ${note}`, ...sheet.assumptions];
       return NextResponse.json({ ok: true, sheet, demo: true, note });
     }
   } catch (e) {
+    if (!(e instanceof ZodError)) console.error("[scale] failed:", e);
     const message = friendlyEngineError(e, "Something went wrong scaling the recipe.");
     // Name the fields that failed so the form can highlight them.
     const fields = e instanceof ZodError ? e.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean) : undefined;

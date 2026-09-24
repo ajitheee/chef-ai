@@ -49,6 +49,8 @@ export const ProductionSheetSchema = z.object({
   mode: z.string().optional().default("savory"),
   /** Recipe lifecycle (Master Prompt): Draft | Tested | Approved Master. Stamped by the app, not asked of the model. */
   status: z.string().optional(),
+  /** Who produced it: the chef-logic engine, or the built-in linear+dampening estimate (demo / fallback). App-stamped. */
+  source: z.enum(["engine", "estimate"]).optional(),
   baseYield: z.object({
     portions: z.number(),
     portionSize: z.string(),

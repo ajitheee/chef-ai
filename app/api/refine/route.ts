@@ -34,9 +34,11 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;
+      console.error("[refine] engine unavailable:", reason, "—", e instanceof Error ? e.message : e);
       return NextResponse.json({ ok: true, sheet, demo: true, note: `${reason} The sheet is unchanged — try again once it's back.` });
     }
   } catch (e) {
+    if (!(e instanceof z.ZodError)) console.error("[refine] failed:", e);
     const message = friendlyEngineError(e, "Something went wrong refining the sheet.");
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }

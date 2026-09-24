@@ -100,6 +100,7 @@ export async function scaleRecipe(
   }
   const sheet = parsed.data;
   sheet.status = sheet.status || "Draft"; // recipe lifecycle: generated, not yet tested
+  sheet.source = "engine";
   sheet.assumptions = [
     ...sheet.assumptions,
     `Engine: ${ENGINE_VERSION} (${MODEL}) · Knowledge Pack v${KNOWLEDGE_PACK_VERSION}: ${knowledge.titles.join("; ")}.`,
@@ -234,6 +235,7 @@ export async function refineSheet(
   return {
     ...updated,
     status: "Draft",
+    source: "engine",
     safetyFlags: updated.safetyFlags.length ? updated.safetyFlags : sheet.safetyFlags,
     allergenFlags: updated.allergenFlags.length ? updated.allergenFlags : sheet.allergenFlags,
     assumptions: [...updated.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}) · refined.`],

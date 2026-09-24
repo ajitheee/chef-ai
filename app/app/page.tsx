@@ -597,11 +597,15 @@ export default function Home() {
             />
           )}
 
-          {sheet && demo && (
+          {sheet && (demo || sheet.source === "estimate") && (
             <p className="no-print mb-6 border-l-4 border-warn bg-warn-soft px-3 py-2 text-sm">
               {engineNote ? (
                 <>
                   <span className="font-bold">Built-in estimate</span> — {engineNote}
+                </>
+              ) : !demo ? (
+                <>
+                  <span className="font-bold">Built-in estimate</span> — this sheet was made by the built-in scaler while the chef-logic engine was unavailable (see Assumptions). Scale it again for the engine&apos;s version.
                 </>
               ) : (
                 <>

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { suggestVariations, engineFailure, friendlyEngineError } from "@/lib/engine/claude";
 import { VariationsInputSchema } from "@/lib/engine/schema";
 import { isDemoMode, demoVariations } from "@/lib/engine/demo";
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;
+      console.error("[variations] engine unavailable:", reason, "—", e instanceof Error ? e.message : e);
       return NextResponse.json({
         ok: true,
         result: { dish: input.dish || "Your recipe", variations: [] },
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (e) {
+    if (!(e instanceof ZodError)) console.error("[variations] failed:", e);
     const message = friendlyEngineError(e, "Something went wrong generating variations.");
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
