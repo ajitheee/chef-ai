@@ -17,9 +17,12 @@ export const maxDuration = 300;
 function demoSheetFor(input: ScaleInput): ProductionSheet {
   const text = (input.recipeText || "").trim();
   const isSample = text === SAMPLE.recipeText.trim();
-  return text && !isSample
+  const sheet = text && !isSample
     ? demoScaleFromText(text, input.basePortions, input.targetCovers, input.portionSize, input.kitchenNotes.length, input.dish)
     : demoScale(input.targetCovers, input.portionSize, input.kitchenNotes.length);
+  sheet.source = "estimate";
+  sheet.kitchenMemory = input.kitchenNotes;
+  return sheet;
 }
 
 export async function POST(req: NextRequest) {
@@ -28,9 +31,7 @@ export async function POST(req: NextRequest) {
     const input = ScaleInputSchema.parse(body);
 
     if (isDemoMode()) {
-      const sheet = demoSheetFor(input);
-      sheet.source = "estimate";
-      return NextResponse.json({ ok: true, sheet, demo: true });
+      return NextResponse.json({ ok: true, sheet: demoSheetFor(input), demo: true });
     }
 
     const t0 = Date.now();
@@ -44,7 +45,6 @@ export async function POST(req: NextRequest) {
       // scaler and say plainly why. The banner in the UI carries `note`.
       console.error("[scale] engine unavailable, built-in estimate served:", reason, "—", e instanceof Error ? e.message : e);
       const sheet = demoSheetFor(input);
-      sheet.source = "estimate";
       const note = `${reason} Showing the built-in estimate instead — a rough linear+dampening scale, not the chef-logic engine.`;
       sheet.assumptions = [`LIVE ENGINE UNAVAILABLE — ${note}`, ...sheet.assumptions];
       return NextResponse.json({ ok: true, sheet, demo: true, note });

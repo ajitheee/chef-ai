@@ -238,6 +238,15 @@ export default function Home() {
 
   async function onSave() {
     if (!checkInputs(["recipeName", "recipeText", "basePortions", "portionSize"])) return;
+    // Same name as a saved recipe = an update. Ask before replacing a card that differs.
+    const existing = saved.find((r) => r.name.trim().toLowerCase() === recipeName.trim().toLowerCase());
+    if (
+      existing &&
+      (existing.recipeText !== recipeText || existing.basePortions !== Number(basePortions) || existing.portionSize !== portionSize) &&
+      !window.confirm(`"${existing.name}" is already in your library. Replace it with this version?\n\nThe saved card will be overwritten.`)
+    ) {
+      return;
+    }
     setError("");
     try {
       setSaved(
@@ -520,7 +529,7 @@ export default function Home() {
               <div className="mt-3">
                 <div className="text-sm font-semibold">Kitchen memory — the learning loop</div>
                 <p className="mt-0.5 text-xs text-ink-2">
-                  Corrections about YOUR kitchen, applied to every scale. e.g. &quot;my combi yields 48%, not 45%&quot; · &quot;use 10 oz garlic at 800, not 12&quot;.
+                  Corrections about YOUR kitchen, sent with every scale and listed on the sheet they shaped. e.g. &quot;my combi yields 48%, not 45%&quot; · &quot;use 10 oz garlic at 800, not 12&quot;. Delete a note to stop applying it.
                 </p>
                 <div className="mt-2 flex gap-2">
                   <input className={FIELD} placeholder="Add a correction…" value={newNote} onChange={(e) => setNewNote(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddNote(); }} />
@@ -530,7 +539,10 @@ export default function Home() {
                   <ul className="mt-2 text-sm">
                     {kitchen.map((n) => (
                       <li key={n.id} className="flex items-start justify-between gap-2 border-b border-line py-1.5">
-                        <span>{n.text}</span>
+                        <span>
+                          {n.text}
+                          {n.addedAt && <span className="ml-2 whitespace-nowrap text-xs text-ink-3">{n.addedAt}</span>}
+                        </span>
                         <button onClick={() => store().notes.remove(n.id).then(setKitchen).catch(() => {})} className="shrink-0 px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
                       </li>
                     ))}
@@ -827,6 +839,19 @@ function Sheet({
           ))}
         </ul>
       </Section>
+
+      {sheet.kitchenMemory && sheet.kitchenMemory.length > 0 && (
+        <Section
+          title="Kitchen memory in force"
+          aside={<span className="text-xs text-ink-3">{sheet.kitchenMemory.length} correction{sheet.kitchenMemory.length === 1 ? "" : "s"} sent to the engine with this card</span>}
+        >
+          <ul className="list-disc space-y-1 pl-5 text-sm text-ink-2">
+            {sheet.kitchenMemory.map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       {haccp && <HaccpPanel plan={haccp} />}
 

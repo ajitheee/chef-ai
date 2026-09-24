@@ -110,6 +110,7 @@ export async function scaleRecipe(
   const sheet = applyPortion(parsed.data, derivation);
   sheet.status = sheet.status || "Draft"; // recipe lifecycle: generated, not yet tested
   sheet.source = "engine";
+  sheet.kitchenMemory = input.kitchenNotes;
   sheet.assumptions = [
     ...sheet.assumptions,
     `Engine: ${ENGINE_VERSION} (${MODEL}) · Knowledge Pack v${KNOWLEDGE_PACK_VERSION}: ${knowledge.titles.join("; ")}.`,
@@ -245,6 +246,7 @@ export async function refineSheet(
     ...updated,
     status: "Draft",
     source: "engine",
+    kitchenMemory: sheet.kitchenMemory,
     safetyFlags: updated.safetyFlags.length ? updated.safetyFlags : sheet.safetyFlags,
     allergenFlags: updated.allergenFlags.length ? updated.allergenFlags : sheet.allergenFlags,
     assumptions: [...updated.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}) · refined.`],
