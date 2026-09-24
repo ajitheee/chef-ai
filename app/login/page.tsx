@@ -48,36 +48,6 @@ export default function LoginPage() {
     window.location.assign(next);
   }
 
-  async function createAccount() {
-    if (!supabase) return;
-    if (!email || password.length < 8) {
-      setError("Enter your email and a password of at least 8 characters, then click Create account.");
-      return;
-    }
-    start();
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
-    });
-    setBusy(false);
-    if (error) {
-      setError(
-        /already/i.test(error.message)
-          ? "That email already has an account — sign in, or use “Set / reset password”."
-          : /signups? (are )?not allowed|disabled/i.test(error.message)
-            ? "New accounts are created by your admin — ask them to add you, then sign in here."
-            : error.message
-      );
-      return;
-    }
-    if (data.session) {
-      window.location.assign(next);
-      return;
-    }
-    setNote("Account created. Check your email and click the confirmation link — it signs you in.");
-  }
-
   async function resetPassword() {
     if (!supabase) return;
     if (!email) {
@@ -139,9 +109,6 @@ export default function LoginPage() {
               {busy ? "Working…" : "Sign in →"}
             </button>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              <button type="button" onClick={createAccount} disabled={busy} className={`${CHIP} disabled:opacity-50`}>
-                Create account
-              </button>
               <button type="button" onClick={resetPassword} disabled={busy} className={`${CHIP} disabled:opacity-50`}>
                 Set / reset password
               </button>
@@ -150,8 +117,7 @@ export default function LoginPage() {
               </button>
             </div>
             <p className="mt-4 text-xs text-ink-3">
-              First time? Enter your email and a password, then <span className="font-semibold text-ink-2">Create account</span>. Signed up by email link before? Use{" "}
-              <span className="font-semibold text-ink-2">Set / reset password</span>.
+              No password yet, or forgot it? <span className="font-semibold text-ink-2">Set / reset password</span> emails you a link. Logins are created by your admin — ask them if you don&apos;t have one.
             </p>
           </>
         )}
