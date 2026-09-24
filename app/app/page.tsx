@@ -220,9 +220,10 @@ export default function Home() {
     );
     setFieldErrors(Object.fromEntries(missing.map((f) => [f, FIELD_HELP[f]])));
     if (missing.length === 0) return true;
-    setError(`Missing: ${missing.map((f) => FIELD_LABEL[f]).join(", ")} — see the highlighted field${missing.length > 1 ? "s" : ""}.`);
+    setError(`Fill in the highlighted field${missing.length > 1 ? "s" : ""}: ${missing.map((f) => FIELD_LABEL[f]).join(", ")}.`);
     const first = fieldRefs.current[missing[0]];
     first?.focus();
+    first?.select(); // a wrong value is replaced by whatever they type next
     first?.scrollIntoView({ block: "center", behavior: "smooth" });
     return false;
   }
@@ -444,12 +445,12 @@ export default function Home() {
           )}
 
           <div className="mt-4">
-            <label className={LABEL}>Recipe name<FieldNote msg={fieldErrors.recipeName} /></label>
-            <input ref={(el) => { fieldRefs.current.recipeName = el; }} className={`${fieldCls(!!fieldErrors.recipeName)} font-semibold`} placeholder="Chicken Jambalaya" value={recipeName} onChange={(e) => { setRecipeName(e.target.value); clearFieldError("recipeName"); }} />
+            <label className={LABEL}>Recipe name</label>
+            <input ref={(el) => { fieldRefs.current.recipeName = el; }} className={`${fieldCls(!!fieldErrors.recipeName)} font-semibold`} placeholder={fieldErrors.recipeName || "Chicken Jambalaya"} value={recipeName} onChange={(e) => { setRecipeName(e.target.value); clearFieldError("recipeName"); }} />
           </div>
           <div className="mt-3">
-            <label className={LABEL}>Recipe — as written on the card<FieldNote msg={fieldErrors.recipeText} /></label>
-            <textarea ref={(el) => { fieldRefs.current.recipeText = el; }} className={`${fieldCls(!!fieldErrors.recipeText)} h-44 font-mono-ui text-sm`} placeholder="Paste a standardized recipe here… (or add a photo below)" value={recipeText} onChange={(e) => { setRecipeText(e.target.value); clearFieldError("recipeText"); }} />
+            <label className={LABEL}>Recipe — as written on the card</label>
+            <textarea ref={(el) => { fieldRefs.current.recipeText = el; }} className={`${fieldCls(!!fieldErrors.recipeText)} h-44 font-mono-ui text-sm`} placeholder={fieldErrors.recipeText || "Paste a standardized recipe here… (or add a photo below)"} value={recipeText} onChange={(e) => { setRecipeText(e.target.value); clearFieldError("recipeText"); }} />
           </div>
           <div className="mt-2 flex items-center gap-3">
             <label className={`${CHIP} cursor-pointer`}>
@@ -466,16 +467,16 @@ export default function Home() {
 
           <div className="mt-3 grid grid-cols-3 gap-3">
             <div>
-              <label className={LABEL}>Base portions<FieldNote msg={fieldErrors.basePortions} /></label>
-              <input ref={(el) => { fieldRefs.current.basePortions = el; }} className={fieldCls(!!fieldErrors.basePortions)} inputMode="numeric" placeholder="50" value={basePortions} onChange={(e) => { setBasePortions(e.target.value); clearFieldError("basePortions"); }} />
+              <label className={LABEL}>Base portions</label>
+              <input ref={(el) => { fieldRefs.current.basePortions = el; }} className={fieldCls(!!fieldErrors.basePortions)} inputMode="numeric" placeholder={fieldErrors.basePortions || "50"} value={basePortions} onChange={(e) => { setBasePortions(e.target.value); clearFieldError("basePortions"); }} />
             </div>
             <div>
-              <label className={LABEL}>Target covers<FieldNote msg={fieldErrors.targetCovers} /></label>
-              <input ref={(el) => { fieldRefs.current.targetCovers = el; }} className={fieldCls(!!fieldErrors.targetCovers)} inputMode="numeric" placeholder="850" value={targetCovers} onChange={(e) => { setTargetCovers(e.target.value); clearFieldError("targetCovers"); }} />
+              <label className={LABEL}>Target covers</label>
+              <input ref={(el) => { fieldRefs.current.targetCovers = el; }} className={fieldCls(!!fieldErrors.targetCovers)} inputMode="numeric" placeholder={fieldErrors.targetCovers || "850"} value={targetCovers} onChange={(e) => { setTargetCovers(e.target.value); clearFieldError("targetCovers"); }} />
             </div>
             <div>
-              <label className={LABEL}>Portion size<FieldNote msg={fieldErrors.portionSize} /></label>
-              <input ref={(el) => { fieldRefs.current.portionSize = el; }} className={fieldCls(!!fieldErrors.portionSize)} placeholder="10 oz" value={portionSize} onChange={(e) => { setPortionSize(e.target.value); clearFieldError("portionSize"); }} />
+              <label className={LABEL}>Portion size</label>
+              <input ref={(el) => { fieldRefs.current.portionSize = el; }} className={fieldCls(!!fieldErrors.portionSize)} placeholder={fieldErrors.portionSize || "10 oz"} value={portionSize} onChange={(e) => { setPortionSize(e.target.value); clearFieldError("portionSize"); }} />
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Equipment</label>
@@ -647,7 +648,7 @@ const CHIP_ON = "rounded-md border border-ink bg-ink px-3 py-1.5 text-xs font-se
 const chip = (on: boolean) => (on ? CHIP_ON : CHIP);
 const PRIMARY = "rounded-md bg-accent font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50";
 const H2 = "text-[11px] font-bold uppercase tracking-wider text-ink";
-const FIELD_ERR = FIELD.replace("border-ink bg-card", "border-danger bg-danger-soft");
+const FIELD_ERR = FIELD.replace("border-ink bg-card", "border-danger bg-danger-soft").replace("placeholder:text-ink-3", "placeholder:text-danger");
 const fieldCls = (err: boolean) => (err ? FIELD_ERR : FIELD);
 
 /** The inputs the engine needs, and what to tell a cook when one is missing. */
@@ -659,17 +660,15 @@ const FIELD_LABEL: Record<Field, string> = {
   targetCovers: "Target covers",
   portionSize: "Portion size",
 };
+/** Shown inside the field itself (as its placeholder) when it is missing. Short — the fields are narrow. */
 const FIELD_HELP: Record<Field, string> = {
-  recipeName: "Give the recipe a name, e.g. Chicken Jambalaya.",
-  recipeText: "Paste the recipe as written on the card, or add a photo of it.",
-  basePortions: "How many portions does the card make? A number, e.g. 50.",
-  targetCovers: "How many covers do you need today? A number, e.g. 400.",
-  portionSize: "What is one portion? e.g. 6 oz, or 2 tacos.",
+  recipeName: "Enter a recipe name",
+  recipeText: "Paste the recipe here, or add a photo below",
+  basePortions: "Enter a number, e.g. 50",
+  targetCovers: "Enter a number, e.g. 400",
+  portionSize: "e.g. 6 oz or 2 tacos",
 };
 
-function FieldNote({ msg }: { msg?: string }) {
-  return msg ? <span className="ml-2 normal-case tracking-normal text-danger">— {msg}</span> : null;
-}
 const toolCls = (active: boolean) =>
   active ? "text-ink underline underline-offset-4" : "text-ink-2 underline-offset-4 hover:text-ink hover:underline";
 
