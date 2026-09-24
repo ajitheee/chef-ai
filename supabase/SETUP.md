@@ -14,7 +14,9 @@ survive a cleared cache, sync across devices, and back one login per chef.
 2. **Run the schema** — in the project, open **SQL Editor → New query**, paste
    the entire contents of [`migrations/0001_init.sql`](migrations/0001_init.sql),
    click **Run**, then do the same with
-   [`migrations/0002_recipes_slug.sql`](migrations/0002_recipes_slug.sql).
+   [`migrations/0002_recipes_slug.sql`](migrations/0002_recipes_slug.sql) and
+   [`migrations/0003_yields_versions_pause.sql`](migrations/0003_yields_versions_pause.sql).
+   (Or paste [`migrations/ALL.sql`](migrations/ALL.sql) once — it is all three.)
    This creates the tables and locks each one to its owner with row-level
    security.
 
@@ -48,5 +50,8 @@ what protects the data, and it's already on every table.
   Configuration** redirect URLs so the emailed link works. Recipes in `/library`
   read and write his rows; the first visit offers a one-click import of the 50
   starter recipes.
+- **Project set up before 0003?** Run just that file — it is additive and safe
+  to re-run. Until it runs the app works, but verified yields, pausing a note,
+  recipe status and previous versions are off, and the screens say so.
 - Keep `.env.local` out of git (it already is via `.gitignore`). Never commit
   the **service_role** key — you don't need it for this app.
