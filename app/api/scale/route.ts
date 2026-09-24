@@ -18,7 +18,7 @@ function demoSheetFor(input: ScaleInput): ProductionSheet {
   const text = (input.recipeText || "").trim();
   const isSample = text === SAMPLE.recipeText.trim();
   const sheet = text && !isSample
-    ? demoScaleFromText(text, input.basePortions, input.targetCovers, input.portionSize, input.kitchenNotes.length, input.dish)
+    ? demoScaleFromText(text, input.basePortions, input.targetCovers, input.portionSize, input.kitchenNotes.length, input.dish, input.yields)
     : demoScale(input.targetCovers, input.portionSize, input.kitchenNotes.length);
   sheet.source = "estimate";
   sheet.kitchenMemory = input.kitchenNotes;
@@ -36,8 +36,8 @@ export async function POST(req: NextRequest) {
 
     const t0 = Date.now();
     try {
-      const { sheet, usage, knowledge } = await scaleRecipe(input);
-      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0, usage, engine: ENGINE_VERSION, knowledge });
+      const { sheet, usage, knowledge, yieldsUsed } = await scaleRecipe(input);
+      return NextResponse.json({ ok: true, sheet, demo: false, ms: Date.now() - t0, usage, engine: ENGINE_VERSION, knowledge, yieldsUsed });
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;

@@ -65,7 +65,7 @@ function usageOf(response: Anthropic.Message): EngineUsage {
  */
 export async function scaleRecipe(
   input: ScaleInput
-): Promise<{ sheet: ProductionSheet; usage: EngineUsage; knowledge: string[] }> {
+): Promise<{ sheet: ProductionSheet; usage: EngineUsage; knowledge: string[]; yieldsUsed: string[] }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -81,6 +81,7 @@ export async function scaleRecipe(
     basePortions: input.basePortions,
     targetCovers: input.targetCovers,
     portionSize: input.portionSize,
+    verified: input.yields,
   });
 
   const response = await client.messages.create({
@@ -108,14 +109,15 @@ export async function scaleRecipe(
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
   const sheet = applyPortion(parsed.data, derivation);
-  sheet.status = sheet.status || "Draft"; // recipe lifecycle: generated, not yet tested
+  // Recipe lifecycle: a sheet scaled from a Tested / Approved Master card, unchanged, carries that status; anything else is a Draft.
+  sheet.status = input.recipeStatus && input.recipeStatus !== "Draft" ? input.recipeStatus : "Draft";
   sheet.source = "engine";
   sheet.kitchenMemory = input.kitchenNotes;
   sheet.assumptions = [
     ...sheet.assumptions,
     `Engine: ${ENGINE_VERSION} (${MODEL}) · Knowledge Pack v${KNOWLEDGE_PACK_VERSION}: ${knowledge.titles.join("; ")}.`,
   ];
-  return { sheet, usage: usageOf(response), knowledge: knowledge.titles };
+  return { sheet, usage: usageOf(response), knowledge: knowledge.titles, yieldsUsed: derivation?.verifiedUsed ?? [] };
 }
 
 /**

@@ -57,7 +57,8 @@ export default function Planner() {
     setBuilt(null);
     setProgress({ done: [], active: [] });
     try {
-      const notes = (await getStore().notes.list()).map((n) => n.text);
+      const notes = (await getStore().notes.list()).filter((n) => n.active !== false).map((n) => n.text);
+      const yields = (await getStore().yields.list()).map(({ product, kind, pct, source, verifiedOn }) => ({ product, kind, pct, source, verifiedOn }));
       const out: (Built | undefined)[] = new Array(rows.length);
       const failed: string[] = [];
       let isDemo = false;
@@ -80,6 +81,8 @@ export default function Planner() {
               equipment: rec.equipment || "",
               holdingTime: rec.holdingTime || "",
               kitchenNotes: notes,
+              yields,
+              recipeStatus: rec.status && rec.status !== "Draft" ? rec.status : undefined,
             }),
           });
           const data = await res.json();

@@ -36,6 +36,7 @@ for (const c of cases) {
     equipment: c.equipment || "",
     holdingTime: "",
     kitchenNotes: [] as string[],
+    yields: [],
   };
   const r = retrieveKnowledge(input);
   const content = buildUserContent(input, r.sections);

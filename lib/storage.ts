@@ -6,6 +6,18 @@
  * Swap this module for Supabase later — the rest of the app won't care.
  */
 
+export type SavedRecipeVersion = {
+  version: number;
+  name: string;
+  recipeText: string;
+  basePortions: number;
+  portionSize: string;
+  equipment?: string;
+  holdingTime?: string;
+  savedAt: string;
+  supersededAt: string;
+};
+
 export type SavedRecipe = {
   id: string;
   name: string;
@@ -15,9 +27,16 @@ export type SavedRecipe = {
   equipment?: string;
   holdingTime?: string;
   lastCovers?: number;
+  /** Lifecycle: Draft | Tested | Approved Master (Draft when absent). */
+  status?: string;
+  version?: number;
+  savedAt?: string;
+  /** Prior versions, newest first (kept when the content changed). */
+  versions?: SavedRecipeVersion[];
 };
 
 const KEY = "chefai.recipes.v1";
+const VERSIONS_MAX = 10;
 
 export function getRecipes(): SavedRecipe[] {
   if (typeof window === "undefined") return [];
@@ -29,15 +48,52 @@ export function getRecipes(): SavedRecipe[] {
   }
 }
 
+const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Save a recipe. Same name (case-insensitive) = the same recipe: a content change keeps the prior version and goes back to Draft. */
 export function saveRecipe(r: Omit<SavedRecipe, "id">): SavedRecipe[] {
-  const id = `${Date.now()}-${Math.round(performance.now())}`;
-  // Replace any existing recipe with the same name (case-insensitive).
-  const existing = getRecipes().filter(
-    (x) => x.name.trim().toLowerCase() !== r.name.trim().toLowerCase()
-  );
-  const next = [{ ...r, id }, ...existing];
-  window.localStorage.setItem(KEY, JSON.stringify(next));
-  return next;
+  const all = getRecipes();
+  const old = all.find((x) => same(x.name, r.name));
+  const now = new Date().toLocaleString();
+  let next: SavedRecipe;
+  if (!old) {
+    next = { ...r, id: `${Date.now()}-${Math.round(performance.now())}`, status: r.status ?? "Draft", version: 1, savedAt: now, versions: [] };
+  } else {
+    const changed =
+      old.recipeText !== r.recipeText ||
+      old.basePortions !== r.basePortions ||
+      old.portionSize !== r.portionSize ||
+      (old.equipment ?? "") !== (r.equipment ?? "") ||
+      (old.holdingTime ?? "") !== (r.holdingTime ?? "");
+    if (changed) {
+      const prior: SavedRecipeVersion = {
+        version: old.version ?? 1,
+        name: old.name,
+        recipeText: old.recipeText,
+        basePortions: old.basePortions,
+        portionSize: old.portionSize,
+        equipment: old.equipment,
+        holdingTime: old.holdingTime,
+        savedAt: old.savedAt ?? "",
+        supersededAt: now,
+      };
+      next = {
+        ...old,
+        ...r,
+        id: old.id,
+        status: "Draft",
+        version: (old.version ?? 1) + 1,
+        savedAt: now,
+        versions: [prior, ...(old.versions ?? [])].slice(0, VERSIONS_MAX),
+      };
+    } else {
+      next = { ...old, ...r, id: old.id, status: old.status ?? "Draft", version: old.version ?? 1, versions: old.versions ?? [] };
+    }
+  }
+  const rest = all.filter((x) => !same(x.name, r.name));
+  const list = [next, ...rest];
+  window.localStorage.setItem(KEY, JSON.stringify(list));
+  return list;
 }
 
 export function deleteRecipe(id: string): SavedRecipe[] {

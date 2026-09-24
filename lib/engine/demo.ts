@@ -3,6 +3,7 @@ import { detectSafety, isFunctionalChemistry } from "./safety";
 import { applyPurchasing } from "./yield";
 import { detectAllergens, detectLabelDependent } from "./validate";
 import { derivePortion } from "./portion";
+import type { VerifiedYield } from "./verified";
 
 const YIELD_ASSUMPTION =
   "Pull list converts recipe (EP) amounts to as-purchased (AP) order quantities using standard yield + density tables — verify against your kitchen's actual yields.";
@@ -378,7 +379,8 @@ export function demoScaleFromText(
   covers: number,
   portionSize: string,
   notesApplied = 0,
-  dishName?: string
+  dishName?: string,
+  verified: VerifiedYield[] = []
 ): ProductionSheet {
   const parsed = parseRecipeText(recipeText);
   const dish = (dishName && dishName.trim()) || parsed.dish || "Your recipe";
@@ -437,6 +439,7 @@ export function demoScaleFromText(
     basePortions: base,
     targetCovers: covers > 0 ? covers : base,
     portionSize,
+    verified,
   });
   const finishedYield = derivation ? derivation.finishedYield : "—";
 
@@ -467,7 +470,8 @@ export function demoScaleFromText(
         // Everything with a real quantity gets ordered — garnish and formulation
         // fat included. Only "to taste" / "as needed" lines have nothing to buy.
         .filter((i) => !/^(to taste|as needed|scale to taste)/i.test(i.scaledQty))
-        .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" }))
+        .map((i) => ({ item: i.item, apQty: i.scaledQty, note: "" })),
+      verified
     ),
     safetyFlags: [
       ...safetyRules.map((r) => `[${r.domain}] ${r.rule} (${r.source})`),

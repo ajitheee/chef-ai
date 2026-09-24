@@ -1,3 +1,5 @@
+import { findVerified, type VerifiedYield } from "./verified";
+
 /**
  * Yield & conversion tables (master prompt Modules 10, 12, 14). Standard
  * industry EP/AP yields and volume->weight densities so the pull list shows
@@ -188,7 +190,7 @@ export type PurchasingResult = { apQty: string; note: string };
  *   volume -> weight via density (buy-by-weight items only), then EP -> AP via yield.
  * Leaves liquids (bought by volume) and counted items (cans, bunches) untouched.
  */
-export function purchasingLine(item: string, epQty: string): PurchasingResult {
+export function purchasingLine(item: string, epQty: string, verified: VerifiedYield[] = []): PurchasingResult {
   const q = parseQty(epQty);
   if (!q) return { apQty: epQty, note: "" };
   if (q.fam === "count") {
@@ -210,7 +212,9 @@ export function purchasingLine(item: string, epQty: string): PurchasingResult {
   }
   if (epOz == null) return { apQty: epQty, note: "" }; // liquids by volume stay as-is
 
-  const y = lookupYield(item);
+  // The kitchen's own verified trim yield outranks the table.
+  const v = findVerified(item, "trim", verified);
+  const y = v ? { label: v.product, yield: v.pct / 100, note: `verified${v.source ? `, ${v.source}` : ""}` } : lookupYield(item);
   if (y && y.yield > 1) {
     // cook-up: the card's cooked weight ÷ ratio = dry product to order
     const apOz = epOz / y.yield;
@@ -228,9 +232,9 @@ export function purchasingLine(item: string, epQty: string): PurchasingResult {
 }
 
 /** Apply the purchasing pass to a whole pull list. */
-export function applyPurchasing<T extends { item: string; apQty: string; note?: string }>(pullList: T[]): T[] {
+export function applyPurchasing<T extends { item: string; apQty: string; note?: string }>(pullList: T[], verified: VerifiedYield[] = []): T[] {
   return pullList.map((it) => {
-    const r = purchasingLine(it.item, it.apQty);
+    const r = purchasingLine(it.item, it.apQty, verified);
     return { ...it, apQty: r.apQty, note: [it.note, r.note].filter(Boolean).join(" · ") };
   });
 }

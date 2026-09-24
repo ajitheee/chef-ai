@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RECIPE_STATUSES } from "../data/types";
 
 /** ---------- INPUT ---------- */
 export const ImageInputSchema = z.object({
@@ -6,6 +7,16 @@ export const ImageInputSchema = z.object({
   mediaType: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"]),
 });
 export type ImageInput = z.infer<typeof ImageInputSchema>;
+
+/** One of the kitchen's own measured yields (outranks the standard tables). */
+export const VerifiedYieldSchema = z.object({
+  product: z.string().min(1),
+  kind: z.enum(["trim", "cook"]),
+  pct: z.number().positive().max(400),
+  source: z.string().optional().default(""),
+  verifiedOn: z.string().optional().default(""),
+});
+export type VerifiedYieldInput = z.infer<typeof VerifiedYieldSchema>;
 
 export const ScaleInputSchema = z
   .object({
@@ -18,6 +29,9 @@ export const ScaleInputSchema = z
     holdingTime: z.string().optional().default(""),
     image: ImageInputSchema.optional(),
     kitchenNotes: z.array(z.string()).optional().default([]),
+    yields: z.array(VerifiedYieldSchema).optional().default([]),
+    /** Lifecycle status of the library card this came from, when scaled unchanged. */
+    recipeStatus: z.enum(RECIPE_STATUSES).optional(),
   })
   .refine((v) => (v.recipeText && v.recipeText.trim().length > 0) || !!v.image, {
     message: "Provide a recipe (text) or a photo of one.",

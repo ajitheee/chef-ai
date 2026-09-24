@@ -29,6 +29,7 @@ Method: Toast rice in oil until lightly golden. Sweat onion, then add garlic and
   equipment: "combi oven (steam), tilt skillet, 4-inch hotel pans",
   holdingTime: "held at 135F+ on the line, up to 2 hours",
   kitchenNotes: [],
+  yields: [],
 };
 
 /**

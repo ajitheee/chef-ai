@@ -5,7 +5,7 @@ import { SAMPLE, PRESETS, type Preset } from "@/lib/engine/sample";
 import type { ProductionSheet, Variation } from "@/lib/engine/schema";
 import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
 import { costSheet, type PriceItem } from "@/lib/prices";
-import { getStore, type KitchenStore, type SavedRecipe, type SheetHistoryEntry, type KitchenNote } from "@/lib/store";
+import { getStore, type KitchenStore, type SavedRecipe, type SheetHistoryEntry, type KitchenNote, type VerifiedYieldItem } from "@/lib/store";
 import { downloadBackup, restoreBackup } from "@/lib/backup";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { buildHaccp, haccpText, KIND_MEANING, type HaccpPlan, type ControlKind } from "@/lib/engine/haccp";
@@ -14,7 +14,7 @@ import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/o
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { TopBar } from "@/components/TopBar";
 import { downscaleImage } from "@/lib/image";
-import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, Section, Dot } from "@/components/paper";
+import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, NOTE_WARN, Section, Dot } from "@/components/paper";
 
 type ApiReply = {
   ok?: boolean;
@@ -27,6 +27,7 @@ type ApiReply = {
   engine?: string;
   knowledge?: string[];
   fields?: string[];
+  yieldsUsed?: string[];
 };
 
 /** Parse an API reply; a platform error page (timeout, crash) becomes one plain sentence, not a JSON parser error. */
@@ -87,6 +88,18 @@ export default function Home() {
   const [pPrice, setPPrice] = useState("");
   const [showPrices, setShowPrices] = useState(false);
 
+  // Verified yields — the kitchen's own numbers, which outrank the standard tables.
+  const [yields, setYields] = useState<VerifiedYieldItem[]>([]);
+  const [yProduct, setYProduct] = useState("");
+  const [yKind, setYKind] = useState<"trim" | "cook">("cook");
+  const [yPct, setYPct] = useState("");
+  const [ySource, setYSource] = useState("");
+  const [showYields, setShowYields] = useState(false);
+  const [yieldsUsed, setYieldsUsed] = useState<string[]>([]);
+
+  // Lifecycle status of the library card in the form — Draft as soon as the card is edited.
+  const [recipeStatus, setRecipeStatus] = useState("Draft");
+
   const [dataNote, setDataNote] = useState("");
 
   // The working-data store (browser storage, or the chef's Supabase rows).
@@ -102,13 +115,17 @@ export default function Home() {
     s.history.list().then(setHistory).catch(() => {});
     s.notes.list().then(setKitchen).catch(() => {});
     s.prices.list().then(setPrices).catch(() => {});
+    s.yields.list().then(setYields).catch(() => {});
     // Opened from the library ("Scale this recipe →")? Pre-fill from the data layer.
     const slug = new URLSearchParams(window.location.search).get("recipe");
     if (slug) {
       fetch(`/api/recipes/${encodeURIComponent(slug)}`)
         .then((r) => r.json())
         .then((d) => {
-          if (d.ok) loadPreset(d.recipe as Preset);
+          if (d.ok) {
+            loadPreset(d.recipe as Preset);
+            setRecipeStatus(typeof d.recipe.status === "string" ? d.recipe.status : "Draft");
+          }
         })
         .catch(() => {});
     }
@@ -138,6 +155,23 @@ export default function Home() {
     }
   }
 
+  async function onAddYield() {
+    const pct = Number(yPct.replace("%", "").replace(",", "."));
+    if (!yProduct.trim() || !(pct > 0) || pct > 400) {
+      setError("A verified yield needs the product name and a percentage, e.g. pork shoulder · cook · 62.");
+      return;
+    }
+    try {
+      setYields(await store().yields.add({ product: yProduct, kind: yKind, pct, source: ySource }));
+      setYProduct("");
+      setYPct("");
+      setYSource("");
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save the yield.");
+    }
+  }
+
   function onRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -151,7 +185,7 @@ export default function Home() {
         setKitchen(await s.notes.list());
         setPrices(await s.prices.list());
         setDataNote(
-          `✓ Restored — ${res.recipes} recipes, ${res.prices} prices, ${res.kitchen} kitchen notes, ${res.history} sheets.`
+          `✓ Restored — ${res.recipes} recipes, ${res.prices} prices, ${res.yields} yields, ${res.kitchen} kitchen notes, ${res.history} sheets.`
         );
       } catch (err) {
         setDataNote(err instanceof Error ? err.message : "Couldn't read that backup file.");
@@ -162,6 +196,7 @@ export default function Home() {
   }
 
   function loadSample() {
+    setRecipeStatus("Draft");
     setRecipeName("Mexican Rice");
     setRecipeText(SAMPLE.recipeText);
     setBasePortions(String(SAMPLE.basePortions));
@@ -175,6 +210,7 @@ export default function Home() {
   }
 
   function loadPreset(p: Preset) {
+    setRecipeStatus("Draft");
     setRecipeName(p.name);
     setRecipeText(p.recipeText);
     setBasePortions(String(p.basePortions));
@@ -271,6 +307,7 @@ export default function Home() {
   }
 
   function loadSaved(r: SavedRecipe) {
+    setRecipeStatus(r.status || "Draft");
     setRecipeName(r.name);
     setRecipeText(r.recipeText);
     setBasePortions(String(r.basePortions));
@@ -308,7 +345,9 @@ export default function Home() {
           equipment,
           holdingTime,
           image: imageData ? { dataBase64: imageData, mediaType: imageMediaType } : undefined,
-          kitchenNotes: kitchen.map((n) => n.text),
+          kitchenNotes: kitchen.filter((n) => n.active !== false).map((n) => n.text),
+          yields: yields.map(({ product, kind, pct, source, verifiedOn }) => ({ product, kind, pct, source, verifiedOn })),
+          recipeStatus: recipeStatus !== "Draft" ? recipeStatus : undefined,
         }),
       });
       const data = await readJson(res);
@@ -323,6 +362,7 @@ export default function Home() {
       setEngineMs(typeof data.ms === "number" ? data.ms : null);
       setEngineLabel(typeof data.engine === "string" ? data.engine : null);
       setKnowledgeUsed(Array.isArray(data.knowledge) ? data.knowledge : []);
+      setYieldsUsed(Array.isArray(data.yieldsUsed) ? data.yieldsUsed : []);
       setRefineNote("");
       store().history.add(s.dish, s.targetYield.covers, s).then(setHistory).catch(() => {});
     } catch (e) {
@@ -367,6 +407,7 @@ export default function Home() {
     setEngineMs(null);
     setEngineLabel(null);
     setKnowledgeUsed([]);
+    setYieldsUsed([]);
   }
 
   async function onVariations() {
@@ -396,6 +437,7 @@ export default function Home() {
   }
 
   function useVariation(v: Variation) {
+    setRecipeStatus("Draft");
     setRecipeName(v.name);
     setRecipeText(v.recipeText);
     setBasePortions(String(v.basePortions));
@@ -459,7 +501,7 @@ export default function Home() {
           </div>
           <div className="mt-3">
             <label className={LABEL}>Recipe — as written on the card</label>
-            <textarea ref={(el) => { fieldRefs.current.recipeText = el; }} className={`${fieldCls(!!fieldErrors.recipeText)} h-44 font-mono-ui text-sm`} placeholder={fieldErrors.recipeText || "Paste a standardized recipe here… (or add a photo below)"} value={recipeText} onChange={(e) => { setRecipeText(e.target.value); clearFieldError("recipeText"); }} />
+            <textarea ref={(el) => { fieldRefs.current.recipeText = el; }} className={`${fieldCls(!!fieldErrors.recipeText)} h-44 font-mono-ui text-sm`} placeholder={fieldErrors.recipeText || "Paste a standardized recipe here… (or add a photo below)"} value={recipeText} onChange={(e) => { setRecipeText(e.target.value); clearFieldError("recipeText"); setRecipeStatus("Draft"); }} />
           </div>
           <div className="mt-2 flex items-center gap-3">
             <label className={`${CHIP} cursor-pointer`}>
@@ -477,7 +519,7 @@ export default function Home() {
           <div className="mt-3 grid grid-cols-3 gap-3">
             <div>
               <label className={LABEL}>Base portions</label>
-              <input ref={(el) => { fieldRefs.current.basePortions = el; }} className={fieldCls(!!fieldErrors.basePortions)} inputMode="numeric" placeholder={fieldErrors.basePortions || "50"} value={basePortions} onChange={(e) => { setBasePortions(e.target.value); clearFieldError("basePortions"); }} />
+              <input ref={(el) => { fieldRefs.current.basePortions = el; }} className={fieldCls(!!fieldErrors.basePortions)} inputMode="numeric" placeholder={fieldErrors.basePortions || "50"} value={basePortions} onChange={(e) => { setBasePortions(e.target.value); clearFieldError("basePortions"); setRecipeStatus("Draft"); }} />
             </div>
             <div>
               <label className={LABEL}>Target covers</label>
@@ -485,7 +527,7 @@ export default function Home() {
             </div>
             <div>
               <label className={LABEL}>Portion size</label>
-              <input ref={(el) => { fieldRefs.current.portionSize = el; }} className={fieldCls(!!fieldErrors.portionSize)} placeholder={fieldErrors.portionSize || "10 oz"} value={portionSize} onChange={(e) => { setPortionSize(e.target.value); clearFieldError("portionSize"); }} />
+              <input ref={(el) => { fieldRefs.current.portionSize = el; }} className={fieldCls(!!fieldErrors.portionSize)} placeholder={fieldErrors.portionSize || "10 oz"} value={portionSize} onChange={(e) => { setPortionSize(e.target.value); clearFieldError("portionSize"); setRecipeStatus("Draft"); }} />
             </div>
             <div className="col-span-2">
               <label className={LABEL}>Equipment</label>
@@ -514,7 +556,8 @@ export default function Home() {
           {/* The small tools, under a rule: kitchen memory, prices, backup */}
           <div className="mt-6 border-t border-line-2 pt-3">
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
-              <button onClick={() => setShowKitchen((s) => !s)} className={toolCls(showKitchen)}>Kitchen memory ({kitchen.length})</button>
+              <button onClick={() => setShowKitchen((s) => !s)} className={toolCls(showKitchen)}>Kitchen memory ({kitchen.filter((n) => n.active !== false).length})</button>
+              <button onClick={() => setShowYields((s) => !s)} className={toolCls(showYields)}>Yields ({yields.length})</button>
               <button onClick={() => setShowPrices((s) => !s)} className={toolCls(showPrices)}>Prices ({prices.length})</button>
               <button onClick={() => downloadBackup(store()).catch(() => setDataNote("Couldn't build the backup."))} title="Save all your recipes, prices and notes to a file" className={toolCls(false)}>
                 Backup
@@ -538,12 +581,21 @@ export default function Home() {
                 {kitchen.length > 0 && (
                   <ul className="mt-2 text-sm">
                     {kitchen.map((n) => (
-                      <li key={n.id} className="flex items-start justify-between gap-2 border-b border-line py-1.5">
+                      <li key={n.id} className={`flex items-start justify-between gap-2 border-b border-line py-1.5 ${n.active === false ? "text-ink-3" : ""}`}>
                         <span>
                           {n.text}
+                          {n.active === false && <span className="ml-2 text-[11px] font-bold uppercase tracking-wider text-ink-3">paused</span>}
                           {n.addedAt && <span className="ml-2 whitespace-nowrap text-xs text-ink-3">{n.addedAt}</span>}
                         </span>
-                        <button onClick={() => store().notes.remove(n.id).then(setKitchen).catch(() => {})} className="shrink-0 px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
+                        <span className="flex shrink-0 items-center gap-1">
+                          <button
+                            onClick={() => store().notes.setActive(n.id, n.active === false).then(setKitchen).catch((e) => setError(e instanceof Error ? e.message : "Couldn't update the note."))}
+                            className="px-1 text-xs font-semibold text-ink-2 underline-offset-2 hover:underline"
+                          >
+                            {n.active === false ? "resume" : "pause"}
+                          </button>
+                          <button onClick={() => store().notes.remove(n.id).then(setKitchen).catch(() => {})} className="px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -567,6 +619,43 @@ export default function Home() {
                       <li key={p.id} className="flex items-center justify-between gap-2 border-b border-line py-1.5">
                         <span><span className="font-semibold">{p.name}</span> — ${p.price.toFixed(2)} / {p.unit}</span>
                         <button onClick={() => store().prices.remove(p.id).then(setPrices).catch(() => {})} className="px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {showYields && (
+              <div className="mt-3">
+                <div className="text-sm font-semibold">Verified yields — your numbers outrank the standard tables</div>
+                <p className="mt-0.5 text-xs text-ink-2">
+                  From a test batch or a supplier spec. <span className="font-semibold text-ink-2">Trim</span> = usable ÷ as-purchased; <span className="font-semibold text-ink-2">cook</span> = cooked ÷ raw. Name the product as the card does (e.g. pork shoulder · cook · 62).
+                </p>
+                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_5.5rem_4.5rem] gap-2">
+                  <input className={FIELD} placeholder="Product, as on the card" value={yProduct} onChange={(e) => setYProduct(e.target.value)} />
+                  <select className={FIELD} value={yKind} onChange={(e) => setYKind(e.target.value as "trim" | "cook")} aria-label="Kind">
+                    <option value="cook">cook</option>
+                    <option value="trim">trim</option>
+                  </select>
+                  <input className={FIELD} inputMode="decimal" placeholder="%" value={yPct} onChange={(e) => setYPct(e.target.value)} />
+                </div>
+                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                  <input className={FIELD} placeholder="Source — test batch 9/20, Sysco spec…" value={ySource} onChange={(e) => setYSource(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddYield(); }} />
+                  <button onClick={onAddYield} className={`${PRIMARY} px-4 py-2 text-sm`}>Add</button>
+                </div>
+                {store().kind === "supabase" && store().needsMigration && (
+                  <p className={`${NOTE_WARN} mt-2 text-xs`}>To keep yields, run <span className="font-semibold">supabase/migrations/0003_yields_versions_pause.sql</span> in the Supabase SQL editor once, then reload.</p>
+                )}
+                {yields.length > 0 && (
+                  <ul className="mt-2 text-sm">
+                    {yields.map((y) => (
+                      <li key={y.id} className="flex items-center justify-between gap-2 border-b border-line py-1.5">
+                        <span>
+                          <span className="font-semibold">{y.product}</span> · {y.kind} {y.pct}%
+                          {y.source && <span className="text-ink-2"> · {y.source}</span>}
+                          {y.verifiedOn && <span className="ml-2 whitespace-nowrap text-xs text-ink-3">{y.verifiedOn}</span>}
+                        </span>
+                        <button onClick={() => store().yields.remove(y.id).then(setYields).catch(() => {})} className="px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
                       </li>
                     ))}
                   </ul>
@@ -629,7 +718,7 @@ export default function Home() {
             </p>
           )}
 
-          {sheet && <Sheet sheet={sheet} prices={prices} engineMs={demo ? null : engineMs} engineLabel={demo ? null : engineLabel} knowledge={demo ? [] : knowledgeUsed} />}
+          {sheet && <Sheet sheet={sheet} prices={prices} engineMs={demo ? null : engineMs} engineLabel={demo ? null : engineLabel} knowledge={demo ? [] : knowledgeUsed} verified={demo ? [] : yieldsUsed} />}
 
           {sheet && (
             <section className="no-print mt-8 border-t border-ink pt-3">
@@ -751,12 +840,14 @@ function Sheet({
   engineMs,
   engineLabel,
   knowledge,
+  verified,
 }: {
   sheet: ProductionSheet;
   prices: PriceItem[];
   engineMs: number | null;
   engineLabel: string | null;
   knowledge: string[];
+  verified: string[];
 }) {
   const [copied, setCopied] = useState(false);
   const costing = prices.length > 0 ? costSheet(sheet, prices) : null;
@@ -797,11 +888,12 @@ function Sheet({
       {(engineLabel || engineMs != null) && (
         <p
           className="no-print mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
-          title={knowledge.length ? `Knowledge Pack sections applied: ${knowledge.join(" · ")}` : undefined}
+          title={[knowledge.length ? `Knowledge Pack sections applied: ${knowledge.join(" · ")}` : "", verified.length ? `Verified yields used: ${verified.join(" · ")}` : ""].filter(Boolean).join(" — ") || undefined}
         >
           {engineLabel || "chef-logic engine"}
           {engineMs != null ? ` · ${(engineMs / 1000).toFixed(0)} s` : ""}
           {knowledge.length ? ` · knowledge pack: ${knowledge.length} sections` : ""}
+          {verified.length ? ` · ${verified.length} verified yield${verified.length === 1 ? "" : "s"}` : ""}
         </p>
       )}
 

@@ -1,6 +1,7 @@
 import type { ProductionSheet } from "./schema";
 import { COOK_YIELDS, lookupYield, toGrams } from "./yield";
 import { PROTEIN_COOK, parseQuantity, knownPairs } from "./validate";
+import { findVerified, verifiedLabel, type VerifiedYield } from "./verified";
 
 /**
  * The finished-yield numbers, computed in code so the same card gives the same
@@ -24,6 +25,8 @@ export type PortionDerivation = {
   assumption: string | null;
   /** The line sent to the model. */
   promptLine: string;
+  /** Verified yields that shaped the figures, for the sheet's engine line. */
+  verifiedUsed: string[];
 };
 
 const BUFFER = 1.04; // service buffer, applied to the order, not to the stated yield
@@ -60,6 +63,8 @@ export type PortionInput = {
   basePortions: number;
   targetCovers: number;
   portionSize: string;
+  /** The kitchen's verified yields, which outrank the standard tables. */
+  verified?: VerifiedYield[];
 };
 
 /** Derive the canonical portion + finished-yield figures for this job, or null when the card doesn't allow it. */
@@ -76,6 +81,7 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
     const needLb = (covers * q.n * q.base) / 16;
     return {
       kind: "weight",
+      verifiedUsed: [],
       portionSize: portion,
       finishedYield: `≈${fmtLb(needLb)} lb finished for ${covers} covers · plus 4% service buffer on the order`,
       assumption: null,
@@ -86,6 +92,7 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
     const needFlOz = covers * q.n * q.base;
     return {
       kind: "volume",
+      verifiedUsed: [],
       portionSize: portion,
       finishedYield: `≈${fmtVol(needFlOz)} finished for ${covers} covers · plus 4% service buffer on the order`,
       assumption: null,
@@ -94,7 +101,7 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
   }
 
   // Count portion: anchor on the biggest raw protein on the card.
-  let best: { item: string; qty: string; grams: number; label: string; y: number } | null = null;
+  let best: { item: string; qty: string; grams: number; label: string; y: number; verified: boolean } | null = null;
   for (const ing of input.ingredients) {
     const hit = PROTEIN_COOK.find(([re]) => re.test(ing.name));
     if (!hit) continue;
@@ -102,9 +109,11 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
     if (!g) continue;
     // Already-cooked product on the card: no cook loss to apply.
     const precooked = /\b(pre-?cooked|cooked|rotisserie|smoked|deli)\b/i.test(ing.name);
-    const y = precooked ? 1 : COOK_YIELDS.find((c) => c.label === hit[1])?.yield;
+    const vCook = precooked ? null : findVerified(ing.name, "cook", input.verified);
+    const y = precooked ? 1 : vCook ? vCook.pct / 100 : COOK_YIELDS.find((c) => c.label === hit[1])?.yield;
     if (!y) continue;
-    if (!best || g.grams > best.grams) best = { item: ing.name, qty: ing.qty, grams: g.grams, label: hit[1], y };
+    const label = vCook ? verifiedLabel(vCook) : hit[1];
+    if (!best || g.grams > best.grams) best = { item: ing.name, qty: ing.qty, grams: g.grams, label, y, verified: !!vCook };
   }
   if (!best) return null;
 
@@ -113,7 +122,8 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
   if (!(perOz > 0.25)) return null; // a garnish-sized protein is not the plate
   const needLb = (covers * perOz) / 16;
   const rawNeedLb = (needLb * BUFFER) / best.y;
-  const trim = lookupYield(best.item);
+  const vTrim = findVerified(best.item, "trim", input.verified);
+  const trim = vTrim ? { yield: vTrim.pct / 100, label: verifiedLabel(vTrim) } : lookupYield(best.item);
   const apLb = trim && trim.yield < 1 ? rawNeedLb / trim.yield : null;
   const word = proteinWord(best.label, best.item);
   const pct = Math.round(best.y * 100);
@@ -125,12 +135,13 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
     kind: "count",
     portionSize,
     finishedYield: `≈${fmtLb(needLb)} lb cooked ${word} for ${covers} servings · plus 4% service buffer on the order`,
-    assumption: `Per-serving weight derived from the card: ${rawText} raw ${best.item.toLowerCase()} × ${pct}% cook yield (${best.label}, standard) ÷ ${base} base portions = ${fmtOz1(perOz)} oz cooked per serving. Standard yield — verify with a test batch.`,
+    assumption: `Per-serving weight derived from the card: ${rawText} raw ${best.item.toLowerCase()} × ${pct}% cook yield (${best.label}${best.verified ? "" : ", standard"}) ÷ ${base} base portions = ${fmtOz1(perOz)} oz cooked per serving.${best.verified ? "" : " Standard yield — verify with a test batch."}`,
+    verifiedUsed: [...(best.verified ? [best.label] : []), ...(vTrim ? [verifiedLabel(vTrim)] : [])],
     promptLine:
       `PORTION WEIGHT — computed from the card; use these numbers exactly: ${portionSize}. ` +
       `Finished yield needed ≈ ${fmtLb(needLb)} lb cooked ${word} for ${covers} covers. ` +
       `Raw ${word} to cook ≈ ${fmtLb(rawNeedLb)} lb (includes the 4% service buffer; ${pct}% cook yield)` +
-      (apLb && trim ? `; order ≈ ${fmtLb(apLb)} lb as-purchased at ${Math.round(trim.yield * 100)}% trim yield` : "") +
+      (apLb && trim ? `; order ≈ ${fmtLb(apLb)} lb as-purchased at ${Math.round(trim.yield * 100)}% trim yield${vTrim ? " (verified)" : ""}` : "") +
       `. Scale the other ingredients to the same ${covers}/${base} basis.`,
   };
 }

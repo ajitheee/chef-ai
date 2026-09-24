@@ -5,6 +5,7 @@ import { yieldReferenceText } from "./yield";
 import { MASTER_PROMPT, MASTER_PROMPT_VERSION } from "./brain/master-prompt";
 import { APP_CONTRACT } from "./brain/contract";
 import { knowledgeText, type KnowledgeSection } from "./brain/retrieve";
+import { verifiedYieldsText } from "./verified";
 
 /** Engine version — the governing Master Prompt's version, stamped on every sheet. */
 export const ENGINE_VERSION = `Kitchen Brain v${MASTER_PROMPT_VERSION}`;
@@ -76,6 +77,10 @@ export function buildUserContent(
 
   // The Knowledge Pack sections retrieved for this job (see brain/retrieve.ts).
   if (knowledge.length > 0) lines.push(``, knowledgeText(knowledge));
+
+  // The kitchen's own verified yields outrank the standard tables below.
+  const verified = verifiedYieldsText(input.yields);
+  if (verified) lines.push(``, verified);
 
   // Standard yield + density tables — working assumptions in the pack's own
   // rule classes: the same numbers the deterministic demo engine uses, so both
