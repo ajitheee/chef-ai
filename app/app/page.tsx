@@ -13,6 +13,7 @@ import { estimateNutrition, type NutritionEstimate } from "@/lib/engine/nutritio
 import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/ops";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { TopBar } from "@/components/TopBar";
+import { downscaleImage } from "@/lib/image";
 import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, Section, Dot } from "@/components/paper";
 
 type ApiReply = {
@@ -191,22 +192,20 @@ export default function Home() {
     setImageName("");
   }
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = ""; // let the same photo be picked again
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string; // data:image/jpeg;base64,XXXX
-      const comma = result.indexOf(",");
-      const meta = result.slice(0, comma);
-      const data = result.slice(comma + 1);
-      const mt = meta.match(/data:(.*?);base64/)?.[1] || "image/jpeg";
-      setImageData(data);
-      setImageMediaType(mt);
-      setImageName(file.name);
+    try {
+      // Phone photos are far over the upload limit — shrink them here first.
+      const { dataBase64, mediaType, bytes } = await downscaleImage(file);
+      setImageData(dataBase64);
+      setImageMediaType(mediaType);
+      setImageName(`${file.name} · ${Math.max(1, Math.round(bytes / 1024))} KB`);
       setError("");
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't read that photo.");
+    }
   }
 
   /** Check the inputs before calling the engine: highlight + focus what is missing, in plain words. */
@@ -456,7 +455,7 @@ export default function Home() {
           <div className="mt-2 flex items-center gap-3">
             <label className={`${CHIP} cursor-pointer`}>
               Add photo of a recipe
-              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onFile} />
+              <input type="file" accept="image/*" className="hidden" onChange={onFile} />
             </label>
             {imageName && (
               <span className="inline-flex items-center gap-1 text-xs text-ink-2">
