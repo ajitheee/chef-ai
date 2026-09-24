@@ -35,6 +35,7 @@ export const TD = "border-b border-line py-2 pr-3 align-top";
 /** Notes in the margin: a colored rule on the left, never a box. */
 export const NOTE_WARN = "border-l-4 border-warn bg-warn-soft px-3 py-2 text-sm";
 export const NOTE_DANGER = "border-l-4 border-danger bg-danger-soft px-3 py-2 text-sm font-semibold text-danger";
+export const NOTE_INFO = "border-l-4 border-ink bg-accent-soft px-3 py-2 text-sm";
 
 /** A ruled section: a rule, a small-caps title (with an optional right-hand note), then the content. */
 export function Section({ title, aside, className, children }: { title: string; aside?: ReactNode; className?: string; children: ReactNode }) {

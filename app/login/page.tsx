@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { LABEL, FIELD, CHIP, PRIMARY, NOTE_DANGER, NOTE_INFO } from "@/components/paper";
 
 function safeNext(v: string | null): string {
   return v && v.startsWith("/") && !v.startsWith("//") ? v : "/library";
@@ -108,44 +109,49 @@ export default function LoginPage() {
     else setNote("Check your email — the sign-in link is on its way. Open it in this same browser.");
   }
 
-  const input =
-    "mt-3 w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-base focus:border-accent focus:outline-none";
-  const secondary =
-    "rounded-md border border-line px-3 py-2 text-xs font-bold text-ink-2 hover:bg-bg disabled:opacity-50";
-
   return (
-    <div className=" flex min-h-screen items-center justify-center bg-bg px-4 text-ink">
-      <form onSubmit={signIn} className="w-full max-w-sm rounded-xl border border-line-2 bg-card p-6 shadow-sm">
-        <h1 className=" text-2xl font-semibold">Digital Chef AI</h1>
+    <div className="flex min-h-screen items-center justify-center bg-bg px-4 py-10 text-ink">
+      <form onSubmit={signIn} className="w-full max-w-sm">
+        <div className="border-b border-ink pb-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Digital Chef AI</h1>
+          <p className="mt-1 text-sm text-ink-2">
+            {supabase ? "Sign in to your kitchen." : "Sign-in isn't set up yet (no database connected), so the app is open."}
+          </p>
+        </div>
 
         {!supabase ? (
-          <p className="mt-2 text-sm text-ink-2">
-            Sign-in isn&apos;t set up yet (no database connected), so the app is open.{" "}
-            <a href="/library" className="font-bold text-accent">Go to your library →</a>
-          </p>
+          <a href="/library" className={`${PRIMARY} mt-5 inline-block px-4 py-2.5 text-sm`}>
+            Go to your library →
+          </a>
         ) : (
           <>
-            <p className="mt-1 text-sm text-ink-2">Sign in to your kitchen.</p>
-            <input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={input} placeholder="chef@campus.edu" />
-            <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} placeholder="Password" />
-            {error && <p className="mt-2 text-sm font-semibold text-danger">{error}</p>}
-            {note && <p className="mt-2 text-sm font-semibold text-success">{note}</p>}
-            <button disabled={busy || !email || !password} className="mt-4 w-full rounded-md bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
+            <div className="mt-5">
+              <label className={LABEL} htmlFor="email">Email</label>
+              <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={FIELD} placeholder="chef@campus.edu" />
+            </div>
+            <div className="mt-3">
+              <label className={LABEL} htmlFor="password">Password</label>
+              <input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={FIELD} placeholder="Password" />
+            </div>
+            {error && <p className={`${NOTE_DANGER} mt-3`}>{error}</p>}
+            {note && <p className={`${NOTE_INFO} mt-3`}>{note}</p>}
+            <button disabled={busy || !email || !password} className={`${PRIMARY} mt-4 w-full py-3 text-base`}>
               {busy ? "Working…" : "Sign in →"}
             </button>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={createAccount} disabled={busy} className={secondary}>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button type="button" onClick={createAccount} disabled={busy} className={`${CHIP} disabled:opacity-50`}>
                 Create account
               </button>
-              <button type="button" onClick={resetPassword} disabled={busy} className={secondary}>
+              <button type="button" onClick={resetPassword} disabled={busy} className={`${CHIP} disabled:opacity-50`}>
                 Set / reset password
               </button>
-              <button type="button" onClick={magicLink} disabled={busy} className={secondary}>
+              <button type="button" onClick={magicLink} disabled={busy} className={`${CHIP} disabled:opacity-50`}>
                 Email me a sign-in link
               </button>
             </div>
-            <p className="mt-3 text-[11px] text-ink-3">
-              First time? Enter your email + a password and click <b>Create account</b>. Signed up by email link before? Use <b>Set / reset password</b>.
+            <p className="mt-4 text-xs text-ink-3">
+              First time? Enter your email and a password, then <span className="font-semibold text-ink-2">Create account</span>. Signed up by email link before? Use{" "}
+              <span className="font-semibold text-ink-2">Set / reset password</span>.
             </p>
           </>
         )}

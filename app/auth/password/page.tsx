@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { LABEL, FIELD, PRIMARY, NOTE_DANGER } from "@/components/paper";
 
 /** Reached from the password-reset email (the callback has already signed the user in). */
 export default function SetPasswordPage() {
@@ -42,27 +43,34 @@ export default function SetPasswordPage() {
     window.location.assign("/library");
   }
 
-  const input =
-    "mt-3 w-full rounded-xl border border-line bg-bg px-3 py-2.5 text-base focus:border-accent focus:outline-none";
-
   return (
-    <div className=" flex min-h-screen items-center justify-center bg-bg px-4 text-ink">
-      <form onSubmit={save} className="w-full max-w-sm rounded-xl border border-line-2 bg-card p-6 shadow-sm">
-        <h1 className=" text-2xl font-semibold">Set your password</h1>
-        {ready === "checking" && <p className="mt-2 text-sm text-ink-2">One moment…</p>}
-        {ready === "none" && (
-          <p className="mt-2 text-sm text-ink-2">
-            This link has expired or was opened in a different browser.{" "}
-            <a href="/login" className="font-bold text-accent">Request a new one →</a>
+    <div className="flex min-h-screen items-center justify-center bg-bg px-4 py-10 text-ink">
+      <form onSubmit={save} className="w-full max-w-sm">
+        <div className="border-b border-ink pb-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Set your password</h1>
+          <p className="mt-1 text-sm text-ink-2">
+            {ready === "checking" && "One moment…"}
+            {ready === "ok" && "You're signed in. Choose a password for next time."}
+            {ready === "none" && "This link has expired or was opened in a different browser."}
           </p>
+        </div>
+        {ready === "none" && (
+          <a href="/login" className={`${PRIMARY} mt-5 inline-block px-4 py-2.5 text-sm`}>
+            Request a new one →
+          </a>
         )}
         {ready === "ok" && (
           <>
-            <p className="mt-1 text-sm text-ink-2">You&apos;re signed in. Choose a password for next time.</p>
-            <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={input} placeholder="New password (8+ characters)" />
-            <input type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={input} placeholder="Confirm password" />
-            {error && <p className="mt-2 text-sm font-semibold text-danger">{error}</p>}
-            <button disabled={busy || !password || !confirm} className="mt-4 w-full rounded-md bg-accent px-4 py-3 text-sm font-bold text-accent-ink shadow-sm disabled:opacity-50">
+            <div className="mt-5">
+              <label className={LABEL} htmlFor="new-password">New password</label>
+              <input id="new-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className={FIELD} placeholder="8+ characters" />
+            </div>
+            <div className="mt-3">
+              <label className={LABEL} htmlFor="confirm-password">Confirm password</label>
+              <input id="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className={FIELD} placeholder="Same again" />
+            </div>
+            {error && <p className={`${NOTE_DANGER} mt-3`}>{error}</p>}
+            <button disabled={busy || !password || !confirm} className={`${PRIMARY} mt-4 w-full py-3 text-base`}>
               {busy ? "Saving…" : "Save password →"}
             </button>
           </>
