@@ -30,9 +30,11 @@ export default async function LibraryPage() {
             <form action={importChefRecipes}>
               <button className={CHIP}>Import my 4 Centerpointe recipes</button>
             </form>
-            <form action={importStarters}>
-              <button className={CHIP}>Import the 50-recipe test library</button>
-            </form>
+            {!live && (
+              <form action={importStarters}>
+                <button className={CHIP}>Import the 50-recipe test library</button>
+              </form>
+            )}
             <Link href="/library/new" className={`${PRIMARY} px-4 py-2 text-sm`}>
               New recipe
             </Link>
