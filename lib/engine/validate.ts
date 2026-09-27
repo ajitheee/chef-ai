@@ -216,7 +216,7 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
     checks.push({
       label: "Portion integrity",
       status: "info",
-      detail: "Multi-component portion — verify each component's yield against the pull list.",
+      detail: "Multi-component portion: verify each component's yield against the pull list.",
     });
   } else if (p && f && p.family === f.family && p.family !== "count" && covers > 0) {
     const expected = covers * p.n * p.base;
@@ -233,7 +233,7 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
       checks.push({
         label: "Portion integrity",
         status: "warn",
-        detail: `${covers} covers × portion ≈ ${fmtBase(expected, p.family)}, but finished yield says ${fmtBase(actual, p.family)} — ${off}% off. Check the yield.`,
+        detail: `${covers} covers × portion ≈ ${fmtBase(expected, p.family)}, but finished yield says ${fmtBase(actual, p.family)} (${off}% off). Check the yield.`,
       });
     }
   } else {
@@ -270,7 +270,7 @@ export function validateSheet(sheet: ProductionSheet): Check[] {
   if (found.length === 0) {
     checks.push({ label: "Allergen check", status: "info", detail: "No common allergens detected in the ingredient names." });
   } else if (sheet.allergenFlags.length > 0) {
-    checks.push({ label: "Allergen check", status: "pass", detail: `Detected ${found.join(", ")} — sheet carries ${sheet.allergenFlags.length} allergen flag(s).${labelNote}` });
+    checks.push({ label: "Allergen check", status: "pass", detail: `Detected ${found.join(", ")}; sheet carries ${sheet.allergenFlags.length} allergen flag(s).${labelNote}` });
   } else {
     checks.push({ label: "Allergen check", status: "warn", detail: `Detected ${found.join(", ")} in ingredients, but the sheet has no allergen flags.${labelNote}` });
   }

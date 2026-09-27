@@ -67,6 +67,8 @@ export const ProductionSheetSchema = z.object({
   source: z.enum(["engine", "estimate"]).optional(),
   /** The kitchen-memory corrections that were in force when the sheet was made. App-stamped. */
   kitchenMemory: z.array(z.string()).optional(),
+  /** Provenance: engine version, model and the knowledge sections applied. App-stamped; shown in the engine line, never printed. */
+  engine: z.string().optional(),
   baseYield: z.object({
     portions: z.number(),
     portionSize: z.string(),

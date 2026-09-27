@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         result: { dish: input.dish || "Your recipe", variations: [] },
         demo: true,
-        note: `Variations for "${input.dish || "this recipe"}" need the live engine — add the API key to generate fresh versions.`,
+        note: `Variations for "${input.dish || "this recipe"}" need the live engine. Add the API key to generate fresh versions.`,
       });
     }
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         result: { dish: input.dish || "Your recipe", variations: [] },
         demo: true,
-        note: `${reason} Variations need the live engine — try again once it's back.`,
+        note: `${reason} Variations need the live engine. Try again once it's back.`,
       });
     }
   } catch (e) {

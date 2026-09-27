@@ -30,7 +30,7 @@ export function findVerified(item: string, kind: VerifiedYield["kind"], list: Ve
 
 /** "pork shoulder — verified, test batch 9/20/2026" */
 export const verifiedLabel = (v: VerifiedYield) =>
-  `${v.product.trim()} — verified${v.source ? `, ${v.source}` : ""}${v.verifiedOn ? ` ${v.verifiedOn}` : ""}`;
+  `${v.product.trim()}, verified${v.source ? `: ${v.source}` : ""}${v.verifiedOn ? `, ${v.verifiedOn}` : ""}`;
 
 /** The block sent to the engine, ahead of the standard tables. Empty when there are none. */
 export function verifiedYieldsText(list: VerifiedYield[] | undefined): string {
@@ -39,11 +39,11 @@ export function verifiedYieldsText(list: VerifiedYield[] | undefined): string {
     .map(
       (v) =>
         `- ${v.product.trim()}: ${v.kind === "trim" ? "trim (EP ÷ AP)" : "cook (cooked ÷ raw)"} yield ${v.pct}%` +
-        `${v.source ? ` — ${v.source}` : ""}${v.verifiedOn ? `, ${v.verifiedOn}` : ""}`
+        `${v.source || v.verifiedOn ? ` (${[v.source, v.verifiedOn].filter(Boolean).join(", ")})` : ""}`
     );
   if (lines.length === 0) return "";
   return [
-    `VERIFIED YIELDS — this kitchen's own measured numbers. They OUTRANK the standard tables below: use them wherever the product matches, and say 'verified' where you did:`,
+    `VERIFIED YIELDS: this kitchen's own measured numbers. They OUTRANK the standard tables below: use them wherever the product matches, and say 'verified' where you did:`,
     ...lines,
   ].join("\n");
 }

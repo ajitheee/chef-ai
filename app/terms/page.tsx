@@ -2,7 +2,7 @@ import Link from "next/link";
 import { H1, H2 } from "@/components/paper";
 
 export const metadata = {
-  title: "Terms of use · Digital Chef AI",
+  title: "Terms and conditions · Digital Chef AI",
 };
 
 const EFFECTIVE = "24 September 2026";
@@ -28,6 +28,9 @@ export default function TermsPage() {
             Digital Chef AI
           </Link>
           <nav className="flex items-center gap-4 text-sm">
+            <Link href="/privacy" className="text-ink-2 hover:text-ink">
+              Privacy
+            </Link>
             <Link href="/login" className="text-ink-2 hover:text-ink">
               Sign in
             </Link>
@@ -36,8 +39,8 @@ export default function TermsPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8 lg:px-8">
-        <h1 className={H1}>Terms of use</h1>
-        <p className="mt-1 text-sm text-ink-2">Effective {EFFECTIVE}. Short, and it matters in a kitchen — please read it.</p>
+        <h1 className={H1}>Terms and conditions</h1>
+        <p className="mt-1 text-sm text-ink-2">Effective {EFFECTIVE}. Short, and it matters in a kitchen, so please read it.</p>
 
         <T n={1} title="What Digital Chef AI is">
           <p>
@@ -65,7 +68,8 @@ export default function TermsPage() {
 
         <T n={4} title="Your account and your data">
           <p>
-            One login per kitchen, for the people you authorize; keep the password private. The recipes, notes, yields, prices and sheets you enter are yours: you can export them at any time (Backup) and delete them. We store them to run the Service and may keep backups. We do not sell your data and we do not use your recipes to train AI models. Recipe text you submit is sent to the AI provider to produce your sheet.
+            One login per kitchen, for the people you authorize; keep the password private. The recipes, notes, yields, prices and sheets you enter are yours: you can export them at any time (Backup) and delete them. We store them to run the Service and may keep backups. We do not sell your data and we do not use your recipes to train AI models. Recipe text you submit is sent to the AI provider to produce your sheet. The{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">privacy policy</Link> has the details.
           </p>
         </T>
 
@@ -105,8 +109,12 @@ export default function TermsPage() {
       </main>
 
       <footer className="border-t border-ink">
-        <div className="mx-auto max-w-3xl px-4 py-6 text-[11px] font-bold uppercase tracking-wider text-ink-3 lg:px-8">
-          Digital Chef AI — production intelligence for high-volume kitchens
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-[11px] font-bold uppercase tracking-wider text-ink-3 lg:px-8">
+          <span>Digital Chef AI · Production intelligence for high-volume kitchens</span>
+          <span className="flex gap-4">
+            <Link href="/terms" className="underline underline-offset-2 hover:text-ink">Terms</Link>
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">Privacy</Link>
+          </span>
         </div>
       </footer>
     </div>

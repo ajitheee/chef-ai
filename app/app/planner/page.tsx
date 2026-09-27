@@ -237,7 +237,7 @@ export default function Planner() {
                       <tr key={i}>
                         <td className={`${TD} font-semibold`}>{b.dish}</td>
                         <td className={`${TD} text-right`}>{b.covers}</td>
-                        {prices.length > 0 && <td className={`${TD} pr-0 text-right`}>{b.cost > 0 ? `$${b.cost.toFixed(0)}` : "—"}</td>}
+                        {prices.length > 0 && <td className={`${TD} pr-0 text-right`}>{b.cost > 0 ? `$${b.cost.toFixed(0)}` : "not priced"}</td>}
                       </tr>
                     ))}
                   </tbody>

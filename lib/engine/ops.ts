@@ -54,7 +54,7 @@ function taskFor(item: string, st: Station, marinates: boolean, canned = false):
   const name = lc(item.replace(DESCRIPTOR, "").trim());
   switch (st) {
     case "Garnish & finishing":
-      return desc ? `${VERB[desc]} ${name} — hold for the pass` : `Pick & prep ${name} — hold for the pass`;
+      return desc ? `${VERB[desc]} ${name}` : `Pick & prep ${name}`;
     case "Butcher & proteins":
       return marinates ? `Portion, trim & marinate ${name}` : `Portion & trim ${name}`;
     case "Vegetable prep":
@@ -87,23 +87,23 @@ function buildTasks(sheet: ProductionSheet): { tasks: Task[]; marinates: boolean
 
     if (st === "Garnish & finishing") {
       when = "At service";
-      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty}`;
+      text = `${taskFor(ing.item, st, marinates, canned)}: ${ing.scaledQty}, hold for the pass`;
     } else if (toTaste) {
       when = "At service";
-      text = `Season with ${lc(ing.item)} — ${ing.scaledQty} (on the line)`;
+      text = `Season with ${lc(ing.item)}: ${ing.scaledQty} (on the line)`;
     } else if (asNeeded) {
-      text = `Set up ${lc(ing.item)} — ${ing.scaledQty}`;
+      text = `Set up ${lc(ing.item)}: ${ing.scaledQty}`;
     } else if (st === "Butcher & proteins") {
       when = marinates ? "Day before" : "Morning of";
-      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty}`;
+      text = `${taskFor(ing.item, st, marinates, canned)}: ${ing.scaledQty}`;
     } else if (soaks && /\bbeans?\b|lentil|chickpea/.test(t) && !CANNED.test(t)) {
       when = "Day before";
-      text = `Soak ${lc(ing.item)} — ${ing.scaledQty}`;
+      text = `Soak ${lc(ing.item)}: ${ing.scaledQty}`;
     } else if (marinates && (st === "Sauces & liquids" || MARINADE_PART.test(t)) && !/stock|broth/.test(t)) {
       when = "Day before";
-      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty} (marinade)`;
+      text = `${taskFor(ing.item, st, marinates, canned)}: ${ing.scaledQty} (marinade)`;
     } else {
-      text = `${taskFor(ing.item, st, marinates, canned)} — ${ing.scaledQty}`;
+      text = `${taskFor(ing.item, st, marinates, canned)}: ${ing.scaledQty}`;
     }
     if (ing.note && /dampen|ratio|safety/.test(ing.note)) text += ` · ${ing.note}`;
     return { station: st, when, text };
@@ -157,7 +157,7 @@ export function buildPrepList(sheet: ProductionSheet): OpsDoc {
     if (lines.length) sections.push({ heading: `Station · ${st}`, lines });
   }
 
-  return { title: `Prep list — ${sheet.dish}`, subtitle: subtitle(sheet), sections };
+  return { title: `Prep list · ${sheet.dish}`, subtitle: subtitle(sheet), sections };
 }
 
 const EQUIPMENT: [RegExp, string][] = [
@@ -177,7 +177,7 @@ export function buildSop(sheet: ProductionSheet): OpsDoc {
     ? sheet.method.map((m, i) => `${i + 1}. ${m}`)
     : [
         "1. Prep every item on the prep list; stage by station.",
-        "2. Cook in batches per the batching plan — never overcrowd; probe each batch to temperature.",
+        "2. Cook in batches per the batching plan; never overcrowd. Probe each batch to temperature.",
         "3. Season under; taste and correct on the line (salt, acid, heat climb during the hold).",
         "4. Pan up in shallow pans and move straight to hot holding ≥135°F.",
       ];
@@ -198,12 +198,12 @@ export function buildSop(sheet: ProductionSheet): OpsDoc {
         `Base recipe: ${sheet.baseYield.portions} portions @ ${sheet.baseYield.portionSize}`,
       ],
     },
-    { heading: "Equipment", lines: equipment.length ? equipment : ["Per kitchen standard — confirm vessels against the batching plan."] },
+    { heading: "Equipment", lines: equipment.length ? equipment : ["Per kitchen standard; confirm vessels against the batching plan."] },
     {
       heading: "Allergens",
-      lines: sheet.allergenFlags.length ? sheet.allergenFlags : ["None flagged — verify supplier labels and cross-contact before claiming allergen-free."],
+      lines: sheet.allergenFlags.length ? sheet.allergenFlags : ["None flagged; verify supplier labels and cross-contact before claiming allergen-free."],
     },
-    { heading: "Ingredients (scaled)", lines: sheet.ingredients.map((i) => `${i.item} — ${i.scaledQty}`) },
+    { heading: "Ingredients (scaled)", lines: sheet.ingredients.map((i) => `${i.item}: ${i.scaledQty}`) },
     { heading: "Procedure", lines: procedure },
     { heading: "Batching", lines: sheet.batching.length ? sheet.batching : ["Fits single-vessel execution at this volume."] },
     { heading: "Holding & service", lines: [...sheet.holding, `Portion ${sheet.targetYield.portionSize} per cover.`] },
@@ -218,7 +218,7 @@ export function buildSop(sheet: ProductionSheet): OpsDoc {
     { heading: "Sign-off", lines: ["Prepared by: ______________   Date: __________", "Verified by (chef / manager): ______________"] },
   ];
 
-  return { title: `SOP — ${sheet.dish}`, subtitle: subtitle(sheet), sections };
+  return { title: `SOP · ${sheet.dish}`, subtitle: subtitle(sheet), sections };
 }
 
 /** Copy-code format (Module 19): clean, copyable, ready for real use. */

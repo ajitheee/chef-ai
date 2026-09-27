@@ -40,7 +40,7 @@ export function consolidatePullLists(sheets: ProductionSheet[]): ConsolidatedLin
     const parts: string[] = [];
     for (const [unit, sum] of g.units) parts.push(`${round(sum)} ${unit}`);
     parts.push(...g.raws);
-    out.push({ item: g.display, qty: parts.join(" + ") || "—" });
+    out.push({ item: g.display, qty: parts.join(" + ") || "see sheet" });
   }
   out.sort((a, b) => a.item.localeCompare(b.item));
   return out;

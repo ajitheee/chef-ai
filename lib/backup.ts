@@ -61,7 +61,7 @@ export async function restoreBackup(store: KitchenStore, raw: string): Promise<R
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("That file isn't valid JSON — pick a Chef AI backup file.");
+    throw new Error("That file isn't valid JSON. Pick a Chef AI backup file.");
   }
   const b = parsed as Partial<ChefBackup>;
   if (!b || b.app !== "digital-chef-ai" || !Array.isArray(b.recipes)) {

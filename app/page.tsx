@@ -23,12 +23,12 @@ function fmt(v: number, unit: string): string {
 const STEPS: [string, string, string][] = [
   ["1", "Drop in a recipe", "Paste the card, snap a photo, or open one from your library. Set today's covers, the portion size, and the equipment on hand."],
   ["2", "The engine reasons like a chef", "Every ingredient is scaled by its role. Finished yield comes first; trim and cooking loss are applied; batches and hot-line holding are planned."],
-  ["3", "A production sheet comes out", "Scaled recipe, method, batching, holding, pull list, safety and allergen flags, accuracy checks — printable, or a CSV for purchasing."],
+  ["3", "A production sheet comes out", "Scaled recipe, method, batching, holding, pull list, safety and allergen flags, accuracy checks. Print it, or export a CSV for purchasing."],
 ];
 
 const ON_THE_SHEET: [string, string][] = [
   ["Scaled recipe", "Each ingredient with its effective multiplier and the reason whenever it isn't linear."],
-  ["Batching", "Split across the vessels you actually have — never an overcrowded pan."],
+  ["Batching", "Split across the vessels you actually have, never an overcrowded pan."],
   ["Hot-line holding", "Starches cooked slightly under, liquid held back, seasoning corrected on the line."],
   ["Pull list", "As-purchased quantities in real ordering units, with trim and cook yield shown."],
   ["Accuracy checks", "A deterministic referee re-checks portion math, units, allergens and feasibility."],
@@ -60,10 +60,10 @@ export default function Landing() {
         <section className="py-12 sm:py-16">
           <p className={H2}>Production scaling for high-volume kitchens</p>
           <h1 className="mt-3 max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            Scale a recipe the way a chef would — not the way a calculator does.
+            Scale a recipe the way a chef would, not the way a calculator does.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink-2">
-            Digital Chef AI takes a standardized recipe to any cover count: seasoning dampened by its role, batches sized to your vessels, hot-line holding accounted for, and a pull list in as-purchased units — on one production sheet you can print and hand to the line.
+            Digital Chef AI takes a standardized recipe to any cover count: seasoning dampened by its role, batches sized to your vessels, hot-line holding accounted for, and a pull list in as-purchased units, all on one production sheet you can print and hand to the line.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-4">
             <a href="/app" className={`${PRIMARY} px-5 py-3 text-base`}>Open the scaler →</a>
@@ -157,7 +157,7 @@ export default function Landing() {
           <h2 className={H2}>Governed reasoning</h2>
           <p className="mt-3 max-w-3xl text-sm text-ink-2">
             The engine runs under a versioned master prompt and production knowledge pack written for professional kitchens. Every sheet states its working assumptions, marks what is unverified, and starts as a{" "}
-            <span className="font-semibold text-ink">Draft</span> until a kitchen test confirms the yield — the recipe lifecycle a real operation uses.
+            <span className="font-semibold text-ink">Draft</span> until a kitchen test confirms the yield, which is the recipe lifecycle a real operation uses.
           </p>
         </section>
 
@@ -175,8 +175,11 @@ export default function Landing() {
 
       <footer className="border-t border-ink">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-[11px] font-bold uppercase tracking-wider text-ink-3 lg:px-8">
-          <span>Digital Chef AI — production intelligence for high-volume kitchens</span>
-          <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms of use</a>
+          <span>Digital Chef AI · Production intelligence for high-volume kitchens</span>
+          <span className="flex gap-4">
+            <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms</a>
+            <a href="/privacy" className="underline underline-offset-2 hover:text-ink">Privacy</a>
+          </span>
         </div>
       </footer>
     </div>

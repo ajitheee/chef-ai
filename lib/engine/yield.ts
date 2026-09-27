@@ -264,7 +264,7 @@ export function yieldReferenceText(): string {
     .join(", ");
   return [
     `STANDARD EP/AP TRIM YIELDS (edible fraction of as-purchased; override with the chef's own numbers when given): ${y}.`,
-    `STANDARD COOKING YIELDS (cooked weight ÷ raw edible weight — use these, don't guess, unless the card or kitchen memory states one): ${c}; dry rice cooks up 3x, dry pasta 2.2x, dry beans 2.5x.`,
+    `STANDARD COOKING YIELDS (cooked weight ÷ raw edible weight; use these, don't guess, unless the card or kitchen memory states one): ${c}; dry rice cooks up 3x, dry pasta 2.2x, dry beans 2.5x.`,
     `STANDARD DENSITIES for volume->weight on the pull list: ${d}. Liquids (stock, oil, purees) stay in volume units for ordering.`,
   ].join("\n");
 }

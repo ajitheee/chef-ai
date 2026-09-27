@@ -10,7 +10,7 @@ export const SAFETY_RULES: SafetyRule[] = [
   {
     domain: "brine/cure",
     kw: ["brine", "brined", "brining", "cure", "cured", "curing", "corned", "pastrami", "prague powder", "pink salt", "nitrite", "saltpeter"],
-    rule: "Brine/cure salt (and nitrite) is FUNCTIONAL CHEMISTRY, not seasoning — scale the salt/cure LINEARLY with the water and meat to preserve the exact concentration. NEVER dampen it. Nitrite has strict ppm limits; follow a validated cure calculator.",
+    rule: "Brine/cure salt (and nitrite) is FUNCTIONAL CHEMISTRY, not seasoning: scale the salt/cure LINEARLY with the water and meat to preserve the exact concentration. NEVER dampen it. Nitrite has strict ppm limits; follow a validated cure calculator.",
     source: "USDA FSIS / NCHFP",
   },
   {
@@ -18,7 +18,7 @@ export const SAFETY_RULES: SafetyRule[] = [
     // PROCESS words only — "pickle chips" or "raspberry jam" as an ingredient is not pickling/canning.
     // ("pickling spice" is a spice blend, so bare "pickling" isn't on the list either.)
     kw: ["quick pickle", "quick-pickle", "pickle the", "pickling brine", "pickling liquid", "pickling solution", "canning", "water bath", "water-bath", "shelf stable", "shelf-stable", "acidify", "acidified", "acidification", "process the jars", "seal the jars", "hot pack", "raw pack"],
-    rule: "Preservation acidity is safety-critical — for water-bath canning the product must reach pH < 4.6 (add acid, or pressure-can). Do NOT reduce vinegar/acid for flavor. Use a tested NCHFP recipe.",
+    rule: "Preservation acidity is safety-critical: for water-bath canning the product must reach pH < 4.6 (add acid, or pressure-can). Do NOT reduce vinegar/acid for flavor. Use a tested NCHFP recipe.",
     source: "NCHFP",
   },
   {
@@ -30,14 +30,14 @@ export const SAFETY_RULES: SafetyRule[] = [
   {
     domain: "sous-vide",
     kw: ["sous vide", "sous-vide", "immersion circulator", "vacuum seal", "reduced oxygen", "rop"],
-    rule: "Sous-vide / reduced-oxygen pasteurization time depends on temperature AND thickness AND log-reduction — do NOT improvise a time. Defer to a validated table (Baldwin / USDA).",
+    rule: "Sous-vide / reduced-oxygen pasteurization time depends on temperature AND thickness AND log-reduction; do NOT improvise a time. Defer to a validated table (Baldwin / USDA).",
     source: "Baldwin / USDA",
   },
   {
     domain: "fermentation",
     // PROCESS words only — kimchi or sauerkraut as an ingredient is not fermenting.
     kw: ["ferment", "fermenting", "fermentation", "lacto", "lacto-ferment", "lacto-fermented"],
-    rule: "Fermentation salt % is functional (it controls the culture and safety) — hold the exact salt-by-weight ratio; do not dampen. Follow a validated fermentation ratio.",
+    rule: "Fermentation salt % is functional (it controls the culture and safety): hold the exact salt-by-weight ratio; do not dampen. Follow a validated fermentation ratio.",
     source: "NCHFP",
   },
 ];
@@ -45,7 +45,7 @@ export const SAFETY_RULES: SafetyRule[] = [
 /** Canonical hard temps/times — used verbatim, never invented by the model. */
 export const HARD_TEMPS = [
   "Safe internal cook temps: poultry/stuffed 165F (15s); ground meat 155F (17s); whole-muscle meat/fish/eggs 145F (15s).",
-  "Hot-hold at 135F or above; cold-hold at 41F or below (danger zone 41-135F — minimize time in it).",
+  "Hot-hold at 135F or above; cold-hold at 41F or below (danger zone 41-135F; minimize time in it).",
   "2-stage cooling: 135->70F within 2 h, then 70->41F within 4 more h (<=6 h total), in SHALLOW pans; reheat to 165F within 2 h.",
 ];
 

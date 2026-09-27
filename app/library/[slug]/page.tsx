@@ -11,7 +11,7 @@ import { PRIMARY, LABEL_INLINE, chip, TH, TD, Section } from "@/components/paper
 export const dynamic = "force-dynamic";
 
 const STATUS_HELP: Record<string, string> = {
-  Draft: "generated or edited — not yet tested",
+  Draft: "generated or edited, not yet tested",
   Tested: "a kitchen test recorded the actual yield",
   "Approved Master": "the current production recipe",
 };
@@ -100,7 +100,7 @@ export default async function RecipeDetailPage({
                   {versions.map((v) => (
                     <tr key={v.version}>
                       <td className={`${TD} font-semibold`}>v{v.version}</td>
-                      <td className={TD}>{v.savedAt || "—"}</td>
+                      <td className={TD}>{v.savedAt || "not recorded"}</td>
                       <td className={TD}>{v.supersededAt}</td>
                       <td className={`${TD} hidden sm:table-cell`}>
                         {v.basePortions} · {v.portionSize}

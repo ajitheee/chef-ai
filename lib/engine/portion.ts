@@ -85,7 +85,7 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
       portionSize: portion,
       finishedYield: `≈${fmtLb(needLb)} lb finished for ${covers} covers · plus 4% service buffer on the order`,
       assumption: null,
-      promptLine: `FINISHED YIELD — computed from the approved portion; use it exactly: ${covers} covers × ${portion} ≈ ${fmtLb(needLb)} lb finished. Put the 4% service buffer on the order (pull list), not on the stated yield.`,
+      promptLine: `FINISHED YIELD (computed from the approved portion; use it exactly): ${covers} covers × ${portion} ≈ ${fmtLb(needLb)} lb finished. Put the 4% service buffer on the order (pull list), not on the stated yield.`,
     };
   }
   if (q && q.family === "volume") {
@@ -96,7 +96,7 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
       portionSize: portion,
       finishedYield: `≈${fmtVol(needFlOz)} finished for ${covers} covers · plus 4% service buffer on the order`,
       assumption: null,
-      promptLine: `FINISHED YIELD — computed from the approved portion; use it exactly: ${covers} covers × ${portion} ≈ ${fmtVol(needFlOz)} finished. Put the 4% service buffer on the order (pull list), not on the stated yield.`,
+      promptLine: `FINISHED YIELD (computed from the approved portion; use it exactly): ${covers} covers × ${portion} ≈ ${fmtVol(needFlOz)} finished. Put the 4% service buffer on the order (pull list), not on the stated yield.`,
     };
   }
 
@@ -135,10 +135,10 @@ export function derivePortion(input: PortionInput): PortionDerivation | null {
     kind: "count",
     portionSize,
     finishedYield: `≈${fmtLb(needLb)} lb cooked ${word} for ${covers} servings · plus 4% service buffer on the order`,
-    assumption: `Per-serving weight derived from the card: ${rawText} raw ${best.item.toLowerCase()} × ${pct}% cook yield (${best.label}${best.verified ? "" : ", standard"}) ÷ ${base} base portions = ${fmtOz1(perOz)} oz cooked per serving.${best.verified ? "" : " Standard yield — verify with a test batch."}`,
+    assumption: `Per-serving weight derived from the card: ${rawText} raw ${best.item.toLowerCase()} × ${pct}% cook yield (${best.label}${best.verified ? "" : ", standard"}) ÷ ${base} base portions = ${fmtOz1(perOz)} oz cooked per serving.${best.verified ? "" : " Standard yield; verify with a test batch."}`,
     verifiedUsed: [...(best.verified ? [best.label] : []), ...(vTrim ? [verifiedLabel(vTrim)] : [])],
     promptLine:
-      `PORTION WEIGHT — computed from the card; use these numbers exactly: ${portionSize}. ` +
+      `PORTION WEIGHT (computed from the card; use these numbers exactly): ${portionSize}. ` +
       `Finished yield needed ≈ ${fmtLb(needLb)} lb cooked ${word} for ${covers} covers. ` +
       `Raw ${word} to cook ≈ ${fmtLb(rawNeedLb)} lb (includes the 4% service buffer; ${pct}% cook yield)` +
       (apLb && trim ? `; order ≈ ${fmtLb(apLb)} lb as-purchased at ${Math.round(trim.yield * 100)}% trim yield${vTrim ? " (verified)" : ""}` : "") +

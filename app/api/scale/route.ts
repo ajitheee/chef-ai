@@ -5,6 +5,7 @@ import { ScaleInputSchema, type ScaleInput, type ProductionSheet } from "@/lib/e
 import { isDemoMode, demoScale, demoScaleFromText } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
 import { ENGINE_VERSION } from "@/lib/engine/prompt";
+import { plainSheet } from "@/lib/engine/plain";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -22,7 +23,7 @@ function demoSheetFor(input: ScaleInput): ProductionSheet {
     : demoScale(input.targetCovers, input.portionSize, input.kitchenNotes.length);
   sheet.source = "estimate";
   sheet.kitchenMemory = input.kitchenNotes;
-  return sheet;
+  return plainSheet(sheet);
 }
 
 export async function POST(req: NextRequest) {
@@ -45,8 +46,8 @@ export async function POST(req: NextRequest) {
       // scaler and say plainly why. The banner in the UI carries `note`.
       console.error("[scale] engine unavailable, built-in estimate served:", reason, "—", e instanceof Error ? e.message : e);
       const sheet = demoSheetFor(input);
-      const note = `${reason} Showing the built-in estimate instead — a rough linear+dampening scale, not the chef-logic engine.`;
-      sheet.assumptions = [`LIVE ENGINE UNAVAILABLE — ${note}`, ...sheet.assumptions];
+      const note = `${reason} Showing the built-in estimate instead: a rough linear+dampening scale, not the chef-logic engine.`;
+      sheet.assumptions = [`Live engine unavailable. ${note}`, ...sheet.assumptions];
       return NextResponse.json({ ok: true, sheet, demo: true, note });
     }
   } catch (e) {

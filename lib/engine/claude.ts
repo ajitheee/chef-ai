@@ -20,6 +20,7 @@ import {
 import { retrieveKnowledge, KNOWLEDGE_PACK_VERSION } from "./brain/retrieve";
 import { parseRecipeText, cardIngredients } from "./demo";
 import { derivePortion, applyPortion } from "./portion";
+import { plainSheet } from "./plain";
 
 // Default model — override with ANTHROPIC_MODEL in .env.local if your key
 // has access to a different Claude version.
@@ -113,11 +114,9 @@ export async function scaleRecipe(
   sheet.status = input.recipeStatus && input.recipeStatus !== "Draft" ? input.recipeStatus : "Draft";
   sheet.source = "engine";
   sheet.kitchenMemory = input.kitchenNotes;
-  sheet.assumptions = [
-    ...sheet.assumptions,
-    `Engine: ${ENGINE_VERSION} (${MODEL}) · Knowledge Pack v${KNOWLEDGE_PACK_VERSION}: ${knowledge.titles.join("; ")}.`,
-  ];
-  return { sheet, usage: usageOf(response), knowledge: knowledge.titles, yieldsUsed: derivation?.verifiedUsed ?? [] };
+  // Provenance lives in metadata, not in the printed assumptions.
+  sheet.engine = `${ENGINE_VERSION} · ${MODEL} · Knowledge Pack v${KNOWLEDGE_PACK_VERSION}: ${knowledge.titles.join("; ")}`;
+  return { sheet: plainSheet(sheet), usage: usageOf(response), knowledge: knowledge.titles, yieldsUsed: derivation?.verifiedUsed ?? [] };
 }
 
 /**
@@ -137,7 +136,7 @@ export function engineFailure(e: unknown): string | null {
   }
   if (status === 403 || /permission_error/i.test(msg)) return "The AI engine's API key doesn't have access to this model.";
   if (status === 404 || /not_found_error/i.test(msg)) return "The configured AI model isn't available to this key (check ANTHROPIC_MODEL).";
-  if (status === 429 || /rate_limit/i.test(msg)) return "The AI engine is rate-limited right now — try again in a minute.";
+  if (status === 429 || /rate_limit/i.test(msg)) return "The AI engine is rate-limited right now. Try again in a minute.";
   if ((status !== undefined && status >= 500) || /overloaded|api_error|internal server/i.test(msg)) {
     return "The AI engine is temporarily unavailable.";
   }
@@ -195,7 +194,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
   if (!parsed.success) {
     throw new Error("Variations failed validation: " + parsed.error.message);
   }
-  return parsed.data;
+  return plainSheet(parsed.data);
 }
 
 /**
@@ -241,7 +240,7 @@ export async function refineSheet(
   if (!parsed.success) {
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
-  const updated = parsed.data;
+  const updated = plainSheet(parsed.data);
   // Preserve safety/allergen flags the model may have silently dropped — empty
   // defaults must never wipe a hazard flagged on the prior sheet.
   return {
@@ -251,6 +250,6 @@ export async function refineSheet(
     kitchenMemory: sheet.kitchenMemory,
     safetyFlags: updated.safetyFlags.length ? updated.safetyFlags : sheet.safetyFlags,
     allergenFlags: updated.allergenFlags.length ? updated.allergenFlags : sheet.allergenFlags,
-    assumptions: [...updated.assumptions, `Engine: ${ENGINE_VERSION} (${MODEL}) · refined.`],
+    engine: `${sheet.engine ?? `${ENGINE_VERSION} · ${MODEL}`} · refined`,
   };
 }

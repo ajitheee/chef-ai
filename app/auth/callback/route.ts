@@ -29,5 +29,5 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(msg)}`);
     }
   }
-  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent("That sign-in link didn't work — request a new one.")}`);
+  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent("That sign-in link didn't work. Request a new one.")}`);
 }

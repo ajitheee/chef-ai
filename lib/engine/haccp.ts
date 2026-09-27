@@ -25,9 +25,9 @@ export type ControlEntry = {
 export type HaccpPlan = { dish: string; covers: number; entries: ControlEntry[]; notes: string[] };
 
 export const KIND_MEANING: Record<ControlKind, string> = {
-  CCP: "critical control point — control here is essential to prevent or eliminate a food-safety hazard",
-  CP: "control point — manages a hazard but is not the last line of defense",
-  QCP: "quality control point — protects quality, not safety",
+  CCP: "critical control point: control here is essential to prevent or eliminate a food-safety hazard",
+  CP: "control point: manages a hazard but is not the last line of defense",
+  QCP: "quality control point: protects quality, not safety",
 };
 
 type ProteinClass = "poultry" | "stuffed" | "ground" | "whole" | "fish" | "shellfish" | "egg";
@@ -127,7 +127,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
     e.push({
       step: "Allergen control",
       kind: "CP",
-      hazard: `Allergen cross-contact — ${allergens.join(", ")} present in this recipe.`,
+      hazard: `Allergen cross-contact: ${allergens.join(", ")} present in this recipe.`,
       limit: "Dedicated utensils/pans for allergen-free items; accurate labeling at service; posted allergen info matches the recipe as made.",
       monitor: "Label check before service; recipe changes reviewed against the allergen matrix.",
       corrective: "Pull mislabeled product; remake affected items with clean equipment; notify service.",
@@ -154,9 +154,9 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
       step: "Brining / marinating",
       kind: "CP",
       hazard: "Pathogen growth in raw protein held in brine or marinade; cross-contamination from used brine.",
-      limit: "Brine and hold at ≤41°F (5°C) for the recipe's time — never at room temperature. Salt scaled to the recipe ratio (not dampened).",
+      limit: "Brine and hold at ≤41°F (5°C) for the recipe's time, never at room temperature. Salt scaled to the recipe ratio (not dampened).",
       monitor: "Fridge temperature; time-in written on the brine container.",
-      corrective: "Discard protein held above 41°F for more than 4 h; discard used brine — never reuse or serve it.",
+      corrective: "Discard protein held above 41°F for more than 4 h; discard used brine; never reuse or serve it.",
       verify: "Chef checks brine containers are labeled and refrigerated.",
       record: "Brine / marinade label (item, time in, initials).",
     });
@@ -169,7 +169,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
     hazard: rawAnimal
       ? "Survival of pathogens (Salmonella, Campylobacter, E. coli O157, etc.) if undercooked."
       : "Survival of pathogens on plant foods that will be hot-held.",
-    limit: `${cook.limit} — governs because of ${cook.governing}.${cook.also.length ? ` Also present: ${cook.also.join("; ")}.` : ""}`,
+    limit: `${cook.limit}; governs because of ${cook.governing}.${cook.also.length ? ` Also present: ${cook.also.join("; ")}.` : ""}`,
     monitor: "Probe the thickest part of every batch and every pan with a calibrated thermometer.",
     corrective: "Continue cooking until the limit is met; never serve or hold below it.",
     verify: "Thermometer ice-point calibration daily; chef reviews the cook log each service.",
@@ -181,7 +181,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
       step: "Acidification / pH",
       kind: "CCP",
       hazard: "C. botulinum in low-acid, sealed or anaerobic product.",
-      limit: "Equilibrium pH ≤4.6 per a tested (NCHFP) recipe — never reduce acid for flavor; otherwise pressure-can or keep refrigerated as a TCS food.",
+      limit: "Equilibrium pH ≤4.6 per a tested (NCHFP) recipe; never reduce acid for flavor. Otherwise pressure-can or keep refrigerated as a TCS food.",
       monitor: "Calibrated pH meter on each batch (strips acceptable for refrigerated pickles).",
       corrective: "pH >4.6 → add acid per the validated recipe and re-test, or refrigerate and treat as TCS.",
       verify: "Tested recipe / process authority letter on file; meter calibrated with buffers.",
@@ -194,7 +194,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
       step: "Reduced-oxygen / sous vide",
       kind: "CCP",
       hazard: "C. botulinum and pathogen survival in reduced-oxygen, low-temperature cooking.",
-      limit: "Time–temperature from a validated, thickness-based pasteurization table — never improvised. ROP requires a HACCP plan / variance under the FDA Food Code.",
+      limit: "Time-temperature from a validated, thickness-based pasteurization table, never improvised. ROP requires a HACCP plan / variance under the FDA Food Code.",
       monitor: "Bath temperature and time logged per batch; core temperature verified.",
       corrective: "Bath or time short → extend to the validated time or finish conventionally to the standard limit; discard if unknown.",
       verify: "Validated table cited on the recipe; circulator calibrated.",
@@ -206,8 +206,8 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
     e.push({
       step: "Garlic / herb in oil",
       kind: "CCP",
-      hazard: "C. botulinum — low-acid garlic or herbs in oil (anaerobic).",
-      limit: "Refrigerate ≤41°F (5°C); use within 3–4 days or freeze; never hold at room temperature.",
+      hazard: "C. botulinum: low-acid garlic or herbs in oil (anaerobic).",
+      limit: "Refrigerate ≤41°F (5°C); use within 3-4 days or freeze; never hold at room temperature.",
       monitor: "Date-label at make; check dates at each service.",
       corrective: "Discard undated, out-of-date, or room-temperature product.",
       verify: "Chef checks labels daily.",
@@ -231,7 +231,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
   e.push({
     step: "Hot holding",
     kind: "CCP",
-    hazard: "Pathogen growth in the danger zone (41–135°F) on the line.",
+    hazard: "Pathogen growth in the danger zone (41-135°F) on the line.",
     limit: "≥135°F (57°C) in every pan.",
     monitor: "Probe every pan at set-up and at least every 2 h; stir and rotate pans.",
     corrective: "Below 135°F → if time out of temp is known and <2 h, reheat rapidly to 165°F (74°C) and return; otherwise discard.",
@@ -264,7 +264,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
   e.push({
     step: "Hot-line quality hold",
     kind: "QCP",
-    hazard: "Quality loss, not a safety hazard — starch absorption, sauces tightening, seasoning drift, herbs wilting.",
+    hazard: "Quality loss, not a safety hazard: starch absorption, sauces tightening, seasoning drift, herbs wilting.",
     limit: "Hold each pan ≤90 min; refresh from the line; finish herbs and crisp items at the pass.",
     monitor: "Pan timers or time-in labels.",
     corrective: "Swap tired pans for fresh; loosen with reserved stock; correct seasoning.",
@@ -284,7 +284,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
     entries: e,
     notes: [
       `Detected on this sheet: ${detected.length ? detected.join(" · ") : "no raw animal proteins or special preps"}.`,
-      "Critical limits are FDA Food Code numbers. This summary supports your operation's HACCP plan — it does not replace it. Verify against your plan and local health code.",
+      "Critical limits are FDA Food Code numbers. This summary supports your operation's HACCP plan; it does not replace it. Verify against your plan and local health code.",
     ],
   };
 }
@@ -292,7 +292,7 @@ export function buildHaccp(sheet: ProductionSheet): HaccpPlan {
 /** Copy-code format (Module 19): clean, copyable, ready for real use. */
 export function haccpText(plan: HaccpPlan): string {
   const lines: string[] = [
-    `HACCP / CCP SUMMARY — ${plan.dish} (${plan.covers} covers)`,
+    `HACCP / CCP SUMMARY: ${plan.dish} (${plan.covers} covers)`,
     "=".repeat(50),
   ];
   plan.entries.forEach((x, i) => {

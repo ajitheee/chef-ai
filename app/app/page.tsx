@@ -14,6 +14,7 @@ import { buildPrepList, buildSop, opsDocText, type OpsDoc } from "@/lib/engine/o
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { TopBar } from "@/components/TopBar";
 import { downscaleImage } from "@/lib/image";
+import { plainSheet } from "@/lib/engine/plain";
 import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, NOTE_WARN, Section, Dot } from "@/components/paper";
 
 type ApiReply = {
@@ -37,7 +38,7 @@ async function readJson(res: Response): Promise<ApiReply> {
     return JSON.parse(text) as ApiReply;
   } catch {
     if (res.status === 504 || /FUNCTION_INVOCATION_TIMEOUT|timed out/i.test(text)) {
-      throw new Error("The engine took too long on this recipe — try again, or scale a shorter card.");
+      throw new Error("The engine took too long on this recipe. Try again, or scale a shorter card.");
     }
     throw new Error(`The server returned an unexpected response (${res.status}). Try again in a moment.`);
   }
@@ -185,7 +186,7 @@ export default function Home() {
         setKitchen(await s.notes.list());
         setPrices(await s.prices.list());
         setDataNote(
-          `✓ Restored — ${res.recipes} recipes, ${res.prices} prices, ${res.yields} yields, ${res.kitchen} kitchen notes, ${res.history} sheets.`
+          `Restored: ${res.recipes} recipes, ${res.prices} prices, ${res.yields} yields, ${res.kitchen} kitchen notes, ${res.history} sheets.`
         );
       } catch (err) {
         setDataNote(err instanceof Error ? err.message : "Couldn't read that backup file.");
@@ -298,8 +299,8 @@ export default function Home() {
       );
       setDataNote(
         storeKind === "supabase"
-          ? `✓ Saved "${recipeName.trim()}" to your library.`
-          : `✓ Saved "${recipeName.trim()}" on this device.`
+          ? `Saved "${recipeName.trim()}" to your library.`
+          : `Saved "${recipeName.trim()}" on this device.`
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the recipe.");
@@ -401,7 +402,7 @@ export default function Home() {
   }
 
   function loadHistoryEntry(e: SheetHistoryEntry) {
-    setSheet(e.sheet as ProductionSheet);
+    setSheet(plainSheet(e.sheet as ProductionSheet));
     setRefineNote("");
     setError("");
     setEngineMs(null);
@@ -500,7 +501,7 @@ export default function Home() {
             <input ref={(el) => { fieldRefs.current.recipeName = el; }} className={`${fieldCls(!!fieldErrors.recipeName)} font-semibold`} placeholder={fieldErrors.recipeName || "Chicken Jambalaya"} value={recipeName} onChange={(e) => { setRecipeName(e.target.value); clearFieldError("recipeName"); }} />
           </div>
           <div className="mt-3">
-            <label className={LABEL}>Recipe — as written on the card</label>
+            <label className={LABEL}>Recipe, as written on the card</label>
             <textarea ref={(el) => { fieldRefs.current.recipeText = el; }} className={`${fieldCls(!!fieldErrors.recipeText)} h-44 font-mono-ui text-sm`} placeholder={fieldErrors.recipeText || "Paste a standardized recipe here… (or add a photo below)"} value={recipeText} onChange={(e) => { setRecipeText(e.target.value); clearFieldError("recipeText"); setRecipeStatus("Draft"); }} />
           </div>
           <div className="mt-2 flex items-center gap-3">
@@ -562,7 +563,7 @@ export default function Home() {
               <button onClick={() => downloadBackup(store()).catch(() => setDataNote("Couldn't build the backup."))} title="Save all your recipes, prices and notes to a file" className={toolCls(false)}>
                 Backup
               </button>
-              <label title="Restore from a backup file (merges — nothing is deleted)" className={`${toolCls(false)} cursor-pointer`}>
+              <label title="Restore from a backup file (merges; nothing is deleted)" className={`${toolCls(false)} cursor-pointer`}>
                 Restore
                 <input type="file" accept="application/json,.json" className="hidden" onChange={onRestoreFile} />
               </label>
@@ -570,7 +571,7 @@ export default function Home() {
 
             {showKitchen && (
               <div className="mt-3">
-                <div className="text-sm font-semibold">Kitchen memory — the learning loop</div>
+                <div className="text-sm font-semibold">Kitchen memory: the learning loop</div>
                 <p className="mt-0.5 text-xs text-ink-2">
                   Corrections about YOUR kitchen, sent with every scale and listed on the sheet they shaped. e.g. &quot;my combi yields 48%, not 45%&quot; · &quot;use 10 oz garlic at 800, not 12&quot;. Delete a note to stop applying it.
                 </p>
@@ -605,8 +606,8 @@ export default function Home() {
 
             {showPrices && (
               <div className="mt-3">
-                <div className="text-sm font-semibold">Price list — real food cost</div>
-                <p className="mt-0.5 text-xs text-ink-2">Your supplier prices, used to estimate food cost on each sheet. (Approximate — verify units.)</p>
+                <div className="text-sm font-semibold">Price list: real food cost</div>
+                <p className="mt-0.5 text-xs text-ink-2">Your supplier prices, used to estimate food cost on each sheet. (Approximate; verify units.)</p>
                 <div className="mt-2 grid grid-cols-[1fr_4rem_4.5rem_auto] gap-2">
                   <input className={FIELD} placeholder="Ingredient" value={pName} onChange={(e) => setPName(e.target.value)} />
                   <input className={FIELD} placeholder="unit" value={pUnit} onChange={(e) => setPUnit(e.target.value)} />
@@ -617,7 +618,7 @@ export default function Home() {
                   <ul className="mt-2 text-sm">
                     {prices.map((p) => (
                       <li key={p.id} className="flex items-center justify-between gap-2 border-b border-line py-1.5">
-                        <span><span className="font-semibold">{p.name}</span> — ${p.price.toFixed(2)} / {p.unit}</span>
+                        <span><span className="font-semibold">{p.name}</span>: ${p.price.toFixed(2)} / {p.unit}</span>
                         <button onClick={() => store().prices.remove(p.id).then(setPrices).catch(() => {})} className="px-1 text-ink-3 hover:text-danger" aria-label="Remove">×</button>
                       </li>
                     ))}
@@ -627,7 +628,7 @@ export default function Home() {
             )}
             {showYields && (
               <div className="mt-3">
-                <div className="text-sm font-semibold">Verified yields — your numbers outrank the standard tables</div>
+                <div className="text-sm font-semibold">Verified yields: your numbers outrank the standard tables</div>
                 <p className="mt-0.5 text-xs text-ink-2">
                   From a test batch or a supplier spec. <span className="font-semibold text-ink-2">Trim</span> = usable ÷ as-purchased; <span className="font-semibold text-ink-2">cook</span> = cooked ÷ raw. Name the product as the card does (e.g. pork shoulder · cook · 62).
                 </p>
@@ -640,7 +641,7 @@ export default function Home() {
                   <input className={FIELD} inputMode="decimal" placeholder="%" value={yPct} onChange={(e) => setYPct(e.target.value)} />
                 </div>
                 <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                  <input className={FIELD} placeholder="Source — test batch 9/20, Sysco spec…" value={ySource} onChange={(e) => setYSource(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddYield(); }} />
+                  <input className={FIELD} placeholder="Source: test batch 9/20, Sysco spec…" value={ySource} onChange={(e) => setYSource(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onAddYield(); }} />
                   <button onClick={onAddYield} className={`${PRIMARY} px-4 py-2 text-sm`}>Add</button>
                 </div>
                 {store().kind === "supabase" && store().needsMigration && (
@@ -669,7 +670,7 @@ export default function Home() {
         <section className="mt-8 min-w-0 lg:mt-0 lg:border-l lg:border-ink lg:pl-10 print:mt-0 print:border-0 print:pl-0">
           {variations.length > 0 && (
             <div className="no-print mb-8">
-              <h2 className={H2}>Variations — pick one to scale</h2>
+              <h2 className={H2}>Variations: pick one to scale</h2>
               <ul className="mt-1 divide-y divide-line border-t border-ink">
                 {variations.map((v, i) => (
                   <li key={i} className="flex flex-wrap items-start justify-between gap-3 py-3">
@@ -702,15 +703,15 @@ export default function Home() {
             <p className="no-print mb-6 border-l-4 border-warn bg-warn-soft px-3 py-2 text-sm">
               {engineNote ? (
                 <>
-                  <span className="font-bold">Built-in estimate</span> — {engineNote}
+                  <span className="font-bold">Built-in estimate:</span> {engineNote}
                 </>
               ) : !demo ? (
                 <>
-                  <span className="font-bold">Built-in estimate</span> — this sheet was made by the built-in scaler while the chef-logic engine was unavailable (see Assumptions). Scale it again for the engine&apos;s version.
+                  <span className="font-bold">Built-in estimate:</span> this sheet was made by the built-in scaler while the chef-logic engine was unavailable (see Assumptions). Scale it again for the engine&apos;s version.
                 </>
               ) : (
                 <>
-                  <span className="font-bold">Demo preview</span> — a rough linear+dampening estimate for{" "}
+                  <span className="font-bold">Demo preview:</span> a rough linear+dampening estimate for{" "}
                   <span className="font-bold">{sheet.dish}</span> (no AI yet). Add the API key to unlock the full
                   chef-logic engine on <span className="font-bold">any</span> recipe.
                 </>
@@ -773,7 +774,7 @@ function LoadingSkeleton() {
           <div key={i} className="h-3 w-full rounded-md bg-accent-soft" />
         ))}
       </div>
-      <p className="mt-4 text-xs font-semibold text-ink-3">Scaling with chef logic — batching &amp; holding included… (a long card can take up to a minute)</p>
+      <p className="mt-4 text-xs font-semibold text-ink-3">Scaling with chef logic, batching and holding included. A long card can take up to a minute.</p>
     </div>
   );
 }
@@ -795,11 +796,11 @@ function EmptyState({
       <p className="mt-2 border-t border-ink pt-3 text-sm text-ink-2">
         {hasRecipe ? (
           <>
-            Set today&apos;s covers and tap <span className="font-bold text-ink">Scale recipe</span>. The sheet appears here — scaled amounts, batching, holding, pull list and accuracy checks.
+            Set today&apos;s covers and tap <span className="font-bold text-ink">Scale recipe</span>. The sheet appears here: scaled amounts, batching, holding, pull list and accuracy checks.
           </>
         ) : (
           <>
-            New here? Tap <span className="font-bold text-ink">Load sample</span>, then <span className="font-bold text-ink">Scale recipe</span> to see a full production sheet — scaled amounts, batching, hot-line holding, and a pull list.
+            New here? Tap <span className="font-bold text-ink">Load sample</span>, then <span className="font-bold text-ink">Scale recipe</span> to see a full production sheet: scaled amounts, batching, hot-line holding, and a pull list.
           </>
         )}
       </p>
@@ -885,12 +886,12 @@ function Sheet({
         {sheet.baseYield.portions} portions → <span className="font-semibold text-ink">{sheet.targetYield.covers} covers</span> @ {sheet.targetYield.portionSize}
         {" · "}finished yield <span className="font-semibold text-ink">{sheet.targetYield.finishedYield}</span>
       </p>
-      {(engineLabel || engineMs != null) && (
+      {(engineLabel || engineMs != null || sheet.engine) && (
         <p
           className="no-print mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3"
-          title={[knowledge.length ? `Knowledge Pack sections applied: ${knowledge.join(" · ")}` : "", verified.length ? `Verified yields used: ${verified.join(" · ")}` : ""].filter(Boolean).join(" — ") || undefined}
+          title={[sheet.engine ? `Engine: ${sheet.engine}` : "", knowledge.length ? `Knowledge Pack sections applied: ${knowledge.join(" · ")}` : "", verified.length ? `Verified yields used: ${verified.join(" · ")}` : ""].filter(Boolean).join("; ") || undefined}
         >
-          {engineLabel || "chef-logic engine"}
+          {engineLabel || (sheet.engine ? sheet.engine.split(" · ")[0] : "chef-logic engine")}
           {engineMs != null ? ` · ${(engineMs / 1000).toFixed(0)} s` : ""}
           {knowledge.length ? ` · knowledge pack: ${knowledge.length} sections` : ""}
           {verified.length ? ` · ${verified.length} verified yield${verified.length === 1 ? "" : "s"}` : ""}
@@ -898,7 +899,7 @@ function Sheet({
       )}
 
       <div className="no-print mt-3 flex flex-wrap gap-1.5">
-        <button onClick={copyAll} className={CHIP}>{copied ? "✓ Copied" : "Copy"}</button>
+        <button onClick={copyAll} className={CHIP}>{copied ? "Copied" : "Copy"}</button>
         {sheet.pullList.length > 0 && (
           <button onClick={() => downloadText(`${safeFileName(sheet.dish)}-pull-list.csv`, pullListCsv(sheet), "text/csv;charset=utf-8")} className={CHIP}>
             Pull list (CSV)
@@ -925,7 +926,7 @@ function Sheet({
             <li key={i} className="flex items-start gap-2.5">
               <span className="mt-[7px] flex shrink-0"><Dot cls={c.status === "pass" ? "bg-ink" : c.status === "warn" ? "bg-warn" : "bg-line-2"} /></span>
               <span>
-                <span className="font-semibold">{c.label}</span> <span className="text-ink-2">— {c.detail}</span>
+                <span className="font-semibold">{c.label}:</span> <span className="text-ink-2">{c.detail}</span>
               </span>
             </li>
           ))}
@@ -976,7 +977,7 @@ function Sheet({
             )}
           </div>
           <p className="mt-2 text-xs text-ink-3">
-            Partial estimate — only unit-matched items counted{costing.mismatched > 0 ? "; unit mismatches excluded" : ""}. Add prices in matching units (lb/oz, gal/qt/cup, each) for a full cost.
+            Partial estimate: only unit-matched items counted{costing.mismatched > 0 ? "; unit mismatches excluded" : ""}. Add prices in matching units (lb/oz, gal/qt/cup, each) for a full cost.
           </p>
         </Section>
       )}
@@ -1040,7 +1041,7 @@ function Sheet({
 
       <p className="mt-8 border-t border-line pt-3 text-[11px] text-ink-3">
         Digital Chef AI production sheet · {sheet.status || "Draft"} · Quantities, times, temperatures and allergen labels must be verified by the kitchen before service.{" "}
-        <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms of use</a>
+        <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms</a>{" · "}<a href="/privacy" className="underline underline-offset-2 hover:text-ink">Privacy</a>
       </p>
     </article>
   );
@@ -1091,7 +1092,7 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
       className="haccp-panel"
       aside={
         <button onClick={copy} className={`no-print ${CHIP}`}>
-          {copied ? "✓ Copied" : "Copy plan"}
+          {copied ? "Copied" : "Copy plan"}
         </button>
       }
     >
@@ -1102,7 +1103,7 @@ function HaccpPanel({ plan }: { plan: HaccpPlan }) {
         {(["CCP", "CP", "QCP"] as ControlKind[]).map((k) => (
           <span key={k} className="inline-flex items-center gap-1.5">
             <span className={`rounded-md px-2 py-0.5 font-bold ${kindCls[k]}`}>{k}</span>
-            {KIND_MEANING[k].split(" — ")[0]}
+            {KIND_MEANING[k].split(": ")[0]}
           </span>
         ))}
       </div>
@@ -1150,7 +1151,7 @@ function DocPanel({ doc, cls }: { doc: OpsDoc; cls: string }) {
       className={cls}
       aside={
         <button onClick={copy} className={`no-print ${CHIP}`}>
-          {copied ? "✓ Copied" : "Copy"}
+          {copied ? "Copied" : "Copy"}
         </button>
       }
     >
@@ -1215,7 +1216,7 @@ function NutritionPanel({ est }: { est: NutritionEstimate }) {
           <p className="mt-2 text-xs text-ink-2">
             Calories from protein {est.split.protein}% · carbs {est.split.carbs}% · fat {est.split.fat}%.
             {est.sodiumLevel === "high" || est.sodiumLevel === "very high"
-              ? " Sodium is ≥20% of the 2,300 mg daily value per portion — consider a lower-sodium stock or soy sauce if this is a daily-menu item."
+              ? " Sodium is ≥20% of the 2,300 mg daily value per portion. Consider a lower-sodium stock or soy sauce if this is a daily-menu item."
               : ""}
           </p>
         </>
@@ -1227,7 +1228,7 @@ function NutritionPanel({ est }: { est: NutritionEstimate }) {
 
       <p className="mt-2 text-xs text-ink-3">
         Based on {est.matched} of {est.counted} quantified ingredients ({Math.round(est.coverageByWeight * 100)}% by weight)
-        {notCounted.length > 0 ? ` — not counted: ${notCounted.slice(0, 4).join(", ")}${notCounted.length > 4 ? "…" : ""}` : ""}.
+        {notCounted.length > 0 ? `; not counted: ${notCounted.slice(0, 4).join(", ")}${notCounted.length > 4 ? "…" : ""}` : ""}.
         {est.saltToTaste ? " Salt added to taste isn't counted: 1 tsp table salt ≈ 2,300 mg sodium across the batch." : ""}{" "}
         Standard USDA-style averages on the scaled raw recipe; cooking losses not modeled. Verify against supplier nutrition facts before publishing.
       </p>
@@ -1238,7 +1239,7 @@ function NutritionPanel({ est }: { est: NutritionEstimate }) {
 function PullList({ items }: { items: ProductionSheet["pullList"] }) {
   if (!items || items.length === 0) return null;
   return (
-    <Section title="Pull list — order from inventory">
+    <Section title="Pull list: order from inventory">
       <table className="w-full text-sm">
         <tbody>
           {items.map((it, i) => (

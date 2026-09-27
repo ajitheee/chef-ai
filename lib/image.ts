@@ -17,7 +17,7 @@ export async function downscaleImage(
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("This photo couldn't be read — try a JPEG or PNG."));
+      i.onerror = () => reject(new Error("This photo couldn't be read. Try a JPEG or PNG."));
       i.src = url;
     });
     const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
@@ -27,7 +27,7 @@ export async function downscaleImage(
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("This browser can't resize photos — try a smaller image.");
+    if (!ctx) throw new Error("This browser can't resize photos. Try a smaller image.");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(img, 0, 0, width, height);

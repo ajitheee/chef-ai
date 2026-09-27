@@ -21,7 +21,7 @@ export default function LoginPage() {
     const p = new URLSearchParams(window.location.search);
     setNext(safeNext(p.get("next")));
     const e = p.get("error");
-    if (e === "auth") setError("That sign-in link didn't work — request a new one.");
+    if (e === "auth") setError("That sign-in link didn't work. Request a new one.");
     else if (e) setError(e);
   }, []);
 
@@ -76,7 +76,7 @@ export default function LoginPage() {
     });
     setBusy(false);
     if (error) setError(error.message);
-    else setNote("Check your email — the sign-in link is on its way. Open it in this same browser.");
+    else setNote("Check your email: the sign-in link is on its way. Open it in this same browser.");
   }
 
   return (
@@ -117,12 +117,12 @@ export default function LoginPage() {
               </button>
             </div>
             <p className="mt-4 text-xs text-ink-3">
-              No password yet, or forgot it? <span className="font-semibold text-ink-2">Set / reset password</span> emails you a link. Logins are created by your admin — ask them if you don&apos;t have one.
+              No password yet, or forgot it? <span className="font-semibold text-ink-2">Set / reset password</span> emails you a link. Logins are created by your admin; ask them if you don&apos;t have one.
             </p>
           </>
         )}
         <p className="mt-6 text-xs text-ink-3">
-          <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms of use</a>
+          <a href="/terms" className="underline underline-offset-2 hover:text-ink">Terms</a>{" · "}<a href="/privacy" className="underline underline-offset-2 hover:text-ink">Privacy</a>
         </p>
       </form>
     </div>

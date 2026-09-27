@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Digital Chef AI — Production Scaler",
+  title: "Digital Chef AI · Production scaler",
   description: "Scale dining-hall recipes to today's covers, the way a chef would.",
 };
 

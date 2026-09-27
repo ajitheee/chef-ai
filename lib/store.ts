@@ -61,7 +61,7 @@ export interface KitchenStore {
 const HISTORY_MAX = 20;
 
 export const MIGRATION_MESSAGE =
-  "This needs database migration 0003 — run supabase/migrations/0003_yields_versions_pause.sql in the Supabase SQL editor (two minutes, safe to re-run), then reload.";
+  "This needs database migration 0003. Run supabase/migrations/0003_yields_versions_pause.sql in the Supabase SQL editor (two minutes, safe to re-run), then reload.";
 
 /* ---------- local (browser storage) ---------- */
 

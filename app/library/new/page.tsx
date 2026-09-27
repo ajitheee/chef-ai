@@ -28,7 +28,7 @@ export default async function NewRecipePage({
 
           {repo.kind === "mock" && (
             <p className={`${NOTE_WARN} mt-3`}>
-              No database connected — a recipe added here lives only until the server restarts. Connect Supabase (see DEPLOY.md) to keep your library.
+              No database connected: a recipe added here lives only until the server restarts. Connect Supabase (see DEPLOY.md) to keep your library.
             </p>
           )}
 
@@ -42,7 +42,7 @@ export default async function NewRecipePage({
               <input id="name" name="name" required className={`${FIELD} font-semibold`} placeholder="Chicken Jambalaya" />
             </div>
             <div>
-              <label className={LABEL} htmlFor="recipeText">Recipe — as written on the card</label>
+              <label className={LABEL} htmlFor="recipeText">Recipe, as written on the card</label>
               <textarea id="recipeText" name="recipeText" required rows={12} className={`${FIELD} font-mono-ui text-sm`} placeholder={"Chicken Jambalaya\n- 10 lb chicken thigh, diced\n- 2 lb andouille, sliced\n...\n\nMethod: ..."} />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
