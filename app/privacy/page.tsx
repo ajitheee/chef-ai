@@ -83,6 +83,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>We do not sell your data, and we do not use your recipes to train AI models.</p>
+          <p>Fonts and every page asset are served from our own domain, so apart from our database and sign-in provider your browser talks to no one else.</p>
         </P>
 
         <P n={5} title="Cookies and browser storage">

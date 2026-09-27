@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ---------- Design tokens: "paper & red pencil" ----------
    A printed prep sheet marked up in red: paper page, white cards with black rules,
@@ -34,7 +33,12 @@
   --radius-lg: 3px;
   --radius-xl: 4px;
   --radius-2xl: 6px;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* The typeface is self-hosted by next/font (app/layout.tsx), which defines --font-inter on <html>.
+   `inline` so a `font-sans` utility resolves the variable on the element that uses it. */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 :root {
@@ -47,7 +51,7 @@
 body {
   background: var(--color-bg);
   color: var(--color-ink);
-  font-family: var(--font-sans);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums; /* quantities line up in every table */
   -webkit-font-smoothing: antialiased;
 }
