@@ -43,7 +43,7 @@ const CACHED_SYSTEM = [
 
 export type EngineUsage = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
-function usageOf(response: Anthropic.Message): EngineUsage {
+export function usageOf(response: Anthropic.Message): EngineUsage {
   const u = response.usage as unknown as {
     input_tokens: number;
     output_tokens: number;

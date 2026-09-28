@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-type Section = "scaler" | "library" | "planner";
+type Section = "scaler" | "brain" | "library" | "planner";
 
-/** The header bar shared by every app screen — paper with a black rule underneath. */
+/** The header bar shared by every app screen: paper with a black rule underneath. */
 export function TopBar({ active, signOut = false }: { active: Section; signOut?: boolean }) {
   const item = (key: Section, href: string, label: string) =>
     active === key ? (
@@ -20,6 +20,7 @@ export function TopBar({ active, signOut = false }: { active: Section; signOut?:
         </Link>
         <nav className="flex items-center gap-4 text-sm text-bar-ink/70">
           {item("scaler", "/app", "Scaler")}
+          {item("brain", "/app/brain", "Kitchen Brain")}
           {item("library", "/library", "Library")}
           {item("planner", "/app/planner", "Planner")}
         </nav>

@@ -15,6 +15,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { TopBar } from "@/components/TopBar";
 import { downscaleImage } from "@/lib/image";
 import { plainSheet } from "@/lib/engine/plain";
+import { takeHandoff, type Handoff } from "@/lib/handoff";
 import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, NOTE_WARN, Section, Dot } from "@/components/paper";
 
 type ApiReply = {
@@ -117,6 +118,12 @@ export default function Home() {
     s.notes.list().then(setKitchen).catch(() => {});
     s.prices.list().then(setPrices).catch(() => {});
     s.yields.list().then(setYields).catch(() => {});
+    // Handed a card by Kitchen Brain? Load it (one-shot) and skip the library lookup.
+    const handoff = takeHandoff();
+    if (handoff) {
+      loadHandoff(handoff);
+      return;
+    }
     // Opened from the library ("Scale this recipe →")? Pre-fill from the data layer.
     const slug = new URLSearchParams(window.location.search).get("recipe");
     if (slug) {
@@ -194,6 +201,21 @@ export default function Home() {
     };
     reader.readAsText(file);
     e.target.value = ""; // let the same file be picked again
+  }
+
+  function loadHandoff(h: Handoff) {
+    setRecipeStatus("Draft");
+    setRecipeName(h.name);
+    setRecipeText(h.recipeText);
+    setBasePortions(h.basePortions ? String(h.basePortions) : "");
+    setTargetCovers("");
+    setPortionSize(h.portionSize ?? "");
+    setEquipment(h.equipment ?? "");
+    setHoldingTime(h.holdingTime ?? "");
+    clearImage();
+    setSheet(null);
+    setError("");
+    setDataNote("Card from Kitchen Brain loaded. Check it, set today's covers, then Scale.");
   }
 
   function loadSample() {
