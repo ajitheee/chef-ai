@@ -47,6 +47,9 @@ const UNIT: Record<string, { family: Family; base: number }> = {
   bottle: { family: "count", base: 1 }, bottles: { family: "count", base: 1 }, box: { family: "count", base: 1 }, boxes: { family: "count", base: 1 },
   sheet: { family: "count", base: 1 }, sheets: { family: "count", base: 1 }, stalk: { family: "count", base: 1 }, stalks: { family: "count", base: 1 },
   ear: { family: "count", base: 1 }, ears: { family: "count", base: 1 }, link: { family: "count", base: 1 }, links: { family: "count", base: 1 }, pc: { family: "count", base: 1 }, pcs: { family: "count", base: 1 },
+  leaf: { family: "count", base: 1 }, leaves: { family: "count", base: 1 }, tortilla: { family: "count", base: 1 }, tortillas: { family: "count", base: 1 },
+  egg: { family: "count", base: 1 }, eggs: { family: "count", base: 1 }, wedge: { family: "count", base: 1 }, wedges: { family: "count", base: 1 },
+  fillet: { family: "count", base: 1 }, fillets: { family: "count", base: 1 }, breast: { family: "count", base: 1 }, breasts: { family: "count", base: 1 }, thigh: { family: "count", base: 1 }, thighs: { family: "count", base: 1 },
 };
 
 /** The LEADING quantity only — "5 oz pork with 1/2 cup beans" is 5, not 0.5. */
@@ -91,6 +94,12 @@ function parseQ(s: string): { n: number; family: Family; base: number } | null {
   while ((m = pair.exec(lower))) {
     const u = UNIT[m[2]];
     if (u) return { n: toNum(m[1]), family: u.family, base: u.base };
+  }
+  // "4 bay leaves", "12 corn tortillas": a counted noun one word after the number.
+  const two = lower.match(/(\d+\s+\d+\s*\/\s*\d+|\d+\s*\/\s*\d+|\d+(?:\.\d+)?)\s+[a-z-]+\s+([a-z]+)/);
+  if (two) {
+    const u = UNIT[two[2]];
+    if (u && u.family === "count") return { n: toNum(two[1]), family: "count", base: u.base };
   }
   return null;
 }
