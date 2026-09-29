@@ -51,6 +51,10 @@ what protects the data, and it's already on every table.
   Configuration** redirect URLs so the emailed link works. Recipes in `/library`
   read and write his rows; the first visit offers a one-click import of the 50
   starter recipes.
+- **Not sure everything ran?** Paste [`verify.sql`](verify.sql) into the SQL
+  editor and Run: one row per table, column, policy, index, trigger and
+  constraint the migrations create, each marked found or MISSING with the
+  migration to re-run.
 - **Project set up before 0003 or 0004?** Run just the missing file; each is
   additive and safe to re-run. Until 0003 runs, verified yields, pausing a
   note, recipe status and previous versions are off; until 0004 runs, Kitchen
