@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ProductionSheet } from "./engine/schema";
 import type { VerifiedYield } from "./engine/verified";
+import type { StoredChatMessage, ConversationSummary, ChatPart, ChatMeta } from "./chat-events";
 import { isSupabaseConfigured } from "./supabase/config";
 import { createClient } from "./supabase/client";
 import { slugify } from "./data/slug";
@@ -10,16 +11,18 @@ import * as local from "./storage";
 import * as localNotes from "./kitchen";
 import * as localPrices from "./prices";
 import * as localYields from "./yields";
+import * as localChats from "./conversations";
 import type { SavedRecipe, SheetHistoryEntry } from "./storage";
 import type { KitchenNote } from "./kitchen";
 import type { PriceItem } from "./prices";
 import type { VerifiedYieldItem } from "./yields";
 
-export type { SavedRecipe, SheetHistoryEntry, KitchenNote, PriceItem, VerifiedYieldItem };
+export type { SavedRecipe, SheetHistoryEntry, KitchenNote, PriceItem, VerifiedYieldItem, StoredChatMessage, ConversationSummary };
 
 /**
  * The scaler's working data — saved recipes, sheet history, kitchen memory,
- * price book, verified yields — behind ONE interface with two adapters:
+ * price book, verified yields, Kitchen Brain conversations — behind ONE
+ * interface with two adapters:
  *   - local:    browser storage (no database connected; per device)
  *   - supabase: the chef's own rows, row-level-secured to his login (any device)
  * The page never knows which. getStore() decides from the environment.
@@ -29,6 +32,8 @@ export interface KitchenStore {
   readonly kind: "local" | "supabase";
   /** True once the database turned out to be missing migration 0003 (yields, note pause, versions). */
   readonly needsMigration: boolean;
+  /** True once the database turned out to be missing migration 0004 (conversations, usage). */
+  readonly needsConversationMigration: boolean;
   recipes: {
     list(): Promise<SavedRecipe[]>;
     save(r: Omit<SavedRecipe, "id">): Promise<SavedRecipe[]>;
@@ -56,6 +61,14 @@ export interface KitchenStore {
     add(y: VerifiedYield): Promise<VerifiedYieldItem[]>;
     remove(id: string): Promise<VerifiedYieldItem[]>;
   };
+  conversations: {
+    list(): Promise<ConversationSummary[]>;
+    create(title: string): Promise<ConversationSummary>;
+    remove(id: string): Promise<ConversationSummary[]>;
+    messages(id: string): Promise<StoredChatMessage[]>;
+    /** Add or replace one message; a streamed answer is saved once it is complete. */
+    put(id: string, msg: StoredChatMessage): Promise<void>;
+  };
 }
 
 const HISTORY_MAX = 20;
@@ -63,11 +76,15 @@ const HISTORY_MAX = 20;
 export const MIGRATION_MESSAGE =
   "This needs database migration 0003. Run supabase/migrations/0003_yields_versions_pause.sql in the Supabase SQL editor (two minutes, safe to re-run), then reload.";
 
+export const CONVERSATION_MIGRATION_MESSAGE =
+  "Conversations and usage are not saved yet: run supabase/migrations/0004_conversations_usage.sql in the Supabase SQL editor once (safe to re-run), then reload.";
+
 /* ---------- local (browser storage) ---------- */
 
 class LocalStore implements KitchenStore {
   readonly kind = "local" as const;
   readonly needsMigration = false;
+  readonly needsConversationMigration = false;
   recipes: KitchenStore["recipes"] = {
     list: async () => local.getRecipes(),
     save: async (r) => local.saveRecipe(r),
@@ -94,6 +111,13 @@ class LocalStore implements KitchenStore {
     add: async (y) => localYields.addYield(y),
     remove: async (id) => localYields.removeYield(id),
   };
+  conversations: KitchenStore["conversations"] = {
+    list: async () => localChats.listConversations(),
+    create: async (title) => localChats.createConversation(title),
+    remove: async (id) => localChats.removeConversation(id),
+    messages: async (id) => localChats.conversationMessages(id),
+    put: async (id, msg) => localChats.putMessage(id, msg),
+  };
 }
 
 /* ---------- supabase (the chef's rows) ---------- */
@@ -116,12 +140,14 @@ type SheetRow = { id: string; dish: string; covers: number; sheet: unknown; crea
 type NoteRow = { id: string; text: string; created_at: string; active?: boolean | null };
 type PriceRow = { id: string; name: string; unit: string; price: number | string };
 type YieldRow = { id: string; product: string; kind: "trim" | "cook"; yield_pct: number | string; source: string | null; verified_on: string | null };
+type ConversationRow = { id: string; title: string; updated_at: string };
+type MessageRow = { client_id: string; role: "user" | "assistant"; content: string; parts: unknown; meta: unknown; created_at: string };
 
 function fail(error: { message: string } | null): void {
   if (error) throw new Error(error.message);
 }
 
-/** A table or column that migration 0003 adds is not there yet. */
+/** A table or column that a later migration adds is not there yet. */
 function missingSchema(error: { message: string; code?: string } | null): boolean {
   if (!error) return false;
   return /schema cache|does not exist|PGRST20[45]|42703|42P01/i.test(`${error.code ?? ""} ${error.message}`);
@@ -132,6 +158,7 @@ const dateOnly = (iso: string | null | undefined) => (iso ? new Date(iso.length 
 class SupabaseStore implements KitchenStore {
   readonly kind = "supabase" as const;
   needsMigration = false;
+  needsConversationMigration = false;
 
   constructor(private readonly db: SupabaseClient) {}
 
@@ -325,6 +352,72 @@ class SupabaseStore implements KitchenStore {
       const { error } = await this.db.from("yields").delete().eq("id", id);
       fail(error);
       return this.yields.list();
+    },
+  };
+
+  conversations: KitchenStore["conversations"] = {
+    // Before migration 0004 the tables don't exist: an empty list, and the page says what to run.
+    list: async () => {
+      const { data, error } = await this.db.from("conversations").select("id,title,updated_at").order("updated_at", { ascending: false }).limit(50);
+      if (error && missingSchema(error)) {
+        this.needsConversationMigration = true;
+        return [];
+      }
+      fail(error);
+      return ((data ?? []) as ConversationRow[]).map((r) => ({ id: r.id, title: r.title, updatedAt: r.updated_at }));
+    },
+    create: async (title) => {
+      const { data, error } = await this.db
+        .from("conversations")
+        .insert({ title: title.trim() || "New conversation" })
+        .select("id,title,updated_at")
+        .single();
+      if (error && missingSchema(error)) {
+        this.needsConversationMigration = true;
+        throw new Error(CONVERSATION_MIGRATION_MESSAGE);
+      }
+      fail(error);
+      const r = data as ConversationRow;
+      return { id: r.id, title: r.title, updatedAt: r.updated_at };
+    },
+    remove: async (id) => {
+      const { error } = await this.db.from("conversations").delete().eq("id", id);
+      fail(error);
+      return this.conversations.list();
+    },
+    messages: async (id) => {
+      const { data, error } = await this.db
+        .from("messages")
+        .select("client_id,role,content,parts,meta,created_at")
+        .eq("conversation_id", id)
+        .order("created_at", { ascending: true });
+      if (error && missingSchema(error)) {
+        this.needsConversationMigration = true;
+        return [];
+      }
+      fail(error);
+      return ((data ?? []) as MessageRow[]).map((r) => ({
+        id: r.client_id,
+        role: r.role,
+        text: r.content,
+        parts: Array.isArray(r.parts) ? (r.parts as ChatPart[]) : [],
+        meta: r.meta && typeof r.meta === "object" ? (r.meta as ChatMeta) : undefined,
+        createdAt: r.created_at,
+      }));
+    },
+    put: async (id, msg) => {
+      const { error } = await this.db
+        .from("messages")
+        .upsert(
+          { conversation_id: id, client_id: msg.id, role: msg.role, content: msg.text, parts: msg.parts, meta: msg.meta ?? {} },
+          { onConflict: "conversation_id,client_id" }
+        );
+      if (error && missingSchema(error)) {
+        this.needsConversationMigration = true;
+        return;
+      }
+      fail(error);
+      await this.db.from("conversations").update({ updated_at: new Date().toISOString() }).eq("id", id);
     },
   };
 }

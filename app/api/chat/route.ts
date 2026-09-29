@@ -8,6 +8,7 @@ import { CHAT_ENGINE_VERSION, CHAT_HISTORY_MAX, chatSystemBlocks, chunk, demoRep
 import { CHAT_TOOLS, runTool, toolLabel } from "@/lib/engine/chat-tools";
 import { getRecipeRepository } from "@/lib/data/recipes";
 import type { ChatEvent } from "@/lib/chat-events";
+import { usageDb, budgetGate, recordUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -88,6 +89,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // The month's spend against the budget, then the library, both resolved inside the request before the stream starts.
+  const db = await usageDb();
+  const blocked = await budgetGate(db);
+  if (blocked) return NextResponse.json({ ok: false, error: blocked }, { status: 429 });
+
   const { blocks, knowledge } = chatSystemBlocks({ messages: turns, kitchenNotes: input.kitchenNotes, yields: input.yields });
   // The chef's library, for the tools. Resolved here, inside the request, before the stream starts.
   const repo = await getRecipeRepository();
@@ -147,6 +153,9 @@ export async function POST(req: NextRequest) {
       const reason = engineFailure(e);
       console.error("[chat] engine failed:", reason ?? "", e instanceof Error ? e.message : e);
       emit({ type: "error", message: reason ?? friendlyEngineError(e, "Kitchen Brain could not answer just now. Try again.") });
+    } finally {
+      // Every token spent counts, even when the chef stopped early or a round failed.
+      if (total.input + total.output + total.cacheRead + total.cacheWrite > 0) await recordUsage(db, "chat", total);
     }
   });
 }

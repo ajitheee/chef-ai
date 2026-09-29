@@ -161,7 +161,7 @@ export function friendlyEngineError(e: unknown, fallback: string): string {
 /**
  * Variations / options: propose 2-3 distinct versions of a dish or recipe.
  */
-export async function suggestVariations(input: VariationsInput): Promise<VariationsResult> {
+export async function suggestVariations(input: VariationsInput): Promise<{ result: VariationsResult; usage: EngineUsage }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -194,7 +194,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
   if (!parsed.success) {
     throw new Error("Variations failed validation: " + parsed.error.message);
   }
-  return plainSheet(parsed.data);
+  return { result: plainSheet(parsed.data), usage: usageOf(response) };
 }
 
 /**
@@ -204,7 +204,7 @@ export async function suggestVariations(input: VariationsInput): Promise<Variati
 export async function refineSheet(
   sheet: ProductionSheet,
   instruction: string
-): Promise<ProductionSheet> {
+): Promise<{ sheet: ProductionSheet; usage: EngineUsage }> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -241,9 +241,9 @@ export async function refineSheet(
     throw new Error("Engine output failed validation: " + parsed.error.message);
   }
   const updated = plainSheet(parsed.data);
-  // Preserve safety/allergen flags the model may have silently dropped — empty
+  // Preserve safety/allergen flags the model may have silently dropped: empty
   // defaults must never wipe a hazard flagged on the prior sheet.
-  return {
+  const refined: ProductionSheet = {
     ...updated,
     status: "Draft",
     source: "engine",
@@ -252,4 +252,5 @@ export async function refineSheet(
     allergenFlags: updated.allergenFlags.length ? updated.allergenFlags : sheet.allergenFlags,
     engine: `${sheet.engine ?? `${ENGINE_VERSION} · ${MODEL}`} · refined`,
   };
+  return { sheet: refined, usage: usageOf(response) };
 }

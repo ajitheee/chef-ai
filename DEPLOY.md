@@ -81,3 +81,18 @@ domain is three settings and no code:
    footer's Terms link should open `https://yourdomain.com/terms`.
 
 The `.vercel.app` address keeps working alongside the domain.
+
+## AI budget
+
+Every engine call (chat, scale, refine, variations) records its tokens in
+`usage_events` (migration 0004). The month is summed per kitchen, priced at the
+configured rates, and compared with `MONTHLY_AI_BUDGET_USD` (default $50; 0 for
+no cap). At the budget, chat and scaling answer with a plain sentence until the
+1st. The chef sees the month's spend on the Kitchen Brain page.
+
+The price is an estimate: set `AI_PRICE_INPUT_PER_M`, `AI_PRICE_OUTPUT_PER_M`,
+`AI_PRICE_CACHE_READ_PER_M` and `AI_PRICE_CACHE_WRITE_PER_M` (dollars per
+million tokens) to the model's actual rate from the Anthropic console. Tokens
+are what is stored, so changing a rate re-prices the month. Vercel env vars
+apply on the next deploy. The account-level spend cap in the Anthropic console
+remains the hard stop.

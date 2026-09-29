@@ -4,6 +4,7 @@ import { suggestVariations, engineFailure, friendlyEngineError } from "@/lib/eng
 import { VariationsInputSchema } from "@/lib/engine/schema";
 import { isDemoMode, demoVariations } from "@/lib/engine/demo";
 import { SAMPLE } from "@/lib/engine/sample";
+import { usageDb, budgetGate, recordUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     if (isDemoMode()) {
       // Only the curated sample has pre-authored variations. For any other
-      // dish, don't hand back Mexican-Rice variations — say the live engine is
+      // dish, don't hand back Mexican-Rice variations: say the live engine is
       // needed (variations are genuinely generative, unlike deterministic scaling).
       const text = (input.recipeText || "").trim();
       const isSample = text === SAMPLE.recipeText.trim() || /mexican rice/i.test(input.dish || "");
@@ -30,13 +31,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const db = await usageDb();
+    const blocked = await budgetGate(db);
+    if (blocked) return NextResponse.json({ ok: false, error: blocked }, { status: 429 });
+
     try {
-      const result = await suggestVariations(input);
+      const { result, usage } = await suggestVariations(input);
+      await recordUsage(db, "variations", usage);
       return NextResponse.json({ ok: true, result, demo: false });
     } catch (e) {
       const reason = engineFailure(e);
       if (!reason) throw e;
-      console.error("[variations] engine unavailable:", reason, "—", e instanceof Error ? e.message : e);
+      console.error("[variations] engine unavailable:", reason, "|", e instanceof Error ? e.message : e);
       return NextResponse.json({
         ok: true,
         result: { dish: input.dish || "Your recipe", variations: [] },

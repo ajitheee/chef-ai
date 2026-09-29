@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { friendlyEngineError } from "@/lib/engine/claude";
 import { ScaleInputSchema } from "@/lib/engine/schema";
 import { runScale } from "@/lib/engine/scale-job";
+import { usageDb, budgetGate, recordUsage } from "@/lib/usage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -10,7 +11,11 @@ export const maxDuration = 300;
 export async function POST(req: NextRequest) {
   try {
     const input = ScaleInputSchema.parse(await req.json());
+    const db = await usageDb();
+    const blocked = await budgetGate(db);
+    if (blocked) return NextResponse.json({ ok: false, error: blocked }, { status: 429 });
     const result = await runScale(input);
+    if (result.usage) await recordUsage(db, "scale", result.usage);
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     if (!(e instanceof ZodError)) console.error("[scale] failed:", e);
