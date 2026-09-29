@@ -1,21 +1,23 @@
 "use client";
 
 import type { RecipeCard } from "./recipe-card";
+import type { ProductionSheet } from "./engine/schema";
 
 /**
- * A one-shot handoff from Kitchen Brain to the scaler: the card is put down,
- * the scaler picks it up on its next load, and it is gone. sessionStorage is
- * the transport (it survives the page change and dies with the tab); it is not
- * a data layer, and nothing is read from it twice.
+ * A one-shot handoff from Kitchen Brain to the scaler: the card (and the
+ * sheet, when the brain already scaled it) is put down, the scaler picks it
+ * up on its next load, and it is gone. sessionStorage is the transport (it
+ * survives the page change and dies with the tab); it is not a data layer,
+ * and nothing is read from it twice.
  */
 
 const KEY = "chefai.handoff.v1";
 
-export type Handoff = RecipeCard;
+export type Handoff = RecipeCard & { covers?: number; sheet?: ProductionSheet };
 
-export function setHandoff(card: Handoff): void {
+export function setHandoff(h: Handoff): void {
   try {
-    window.sessionStorage.setItem(KEY, JSON.stringify(card));
+    window.sessionStorage.setItem(KEY, JSON.stringify(h));
   } catch {
     // Storage blocked: the scaler simply opens empty.
   }

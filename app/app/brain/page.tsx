@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
-import { H1, H2, FIELD, CHIP, PRIMARY, NOTE_WARN, NOTE_DANGER } from "@/components/paper";
+import { H1, H2, FIELD, CHIP, PRIMARY, TD, NOTE_WARN, NOTE_DANGER } from "@/components/paper";
 import { getStore, type KitchenNote, type VerifiedYieldItem } from "@/lib/store";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { plainText } from "@/lib/engine/plain";
+import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { splitCards, type RecipeCard } from "@/lib/recipe-card";
 import { setHandoff } from "@/lib/handoff";
+import type { ChatEvent, ToolPayload } from "@/lib/chat-events";
 import type { EngineUsage } from "@/lib/engine/claude";
+import type { ProductionSheet } from "@/lib/engine/schema";
 
 type Meta = {
   engine?: string;
@@ -21,17 +24,18 @@ type Meta = {
   error?: string;
   stopped?: boolean;
 };
-type Msg = { id: string; role: "user" | "assistant"; text: string; meta?: Meta };
 
-type Event =
-  | { type: "text"; text: string }
-  | { type: "done"; usage?: EngineUsage; engine: string; model?: string; knowledge: string[]; demo: boolean; note?: string }
-  | { type: "error"; message: string };
+/** An answer in the order it arrived: text, a tool call, more text. */
+type Part =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; id: string; name: string; label: string; done: boolean; ok?: boolean; payload?: ToolPayload };
+
+type Msg = { id: string; role: "user" | "assistant"; text: string; parts: Part[]; meta?: Meta };
 
 const EXAMPLES = [
   "Build a card for chicken tinga: 50 portions, 4 oz cooked, tilt skillet and hotel pans.",
+  "What is in my library with chicken? Then scale the Chicken Piccata for 200 covers.",
   "My Mexican rice came out gummy at 800 covers. What went wrong, and what do I change on the card?",
-  "Make this card lower in sodium without losing the dish. Here is the card:",
 ];
 
 // Two messages are created in the same millisecond on every send; a counter keeps their keys distinct.
@@ -47,6 +51,7 @@ export default function BrainPage() {
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState<KitchenNote[]>([]);
   const [yields, setYields] = useState<VerifiedYieldItem[]>([]);
+  const [saveNotes, setSaveNotes] = useState<Record<string, string>>({});
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
@@ -63,24 +68,45 @@ export default function BrainPage() {
 
   const patch = (id: string, fn: (m: Msg) => Msg) => setMessages((ms) => ms.map((m) => (m.id === id ? fn(m) : m)));
 
+  function handleEvent(assistantId: string, ev: ChatEvent) {
+    if (ev.type === "text") {
+      patch(assistantId, (m) => {
+        const parts = [...m.parts];
+        const last = parts[parts.length - 1];
+        if (last && last.kind === "text") parts[parts.length - 1] = { kind: "text", text: last.text + ev.text };
+        else parts.push({ kind: "text", text: ev.text });
+        return { ...m, text: m.text + ev.text, parts };
+      });
+    } else if (ev.type === "tool") {
+      patch(assistantId, (m) => ({ ...m, parts: [...m.parts, { kind: "tool", id: ev.id, name: ev.name, label: ev.label, done: false }] }));
+    } else if (ev.type === "tool_done") {
+      patch(assistantId, (m) => ({
+        ...m,
+        parts: m.parts.map((p) => (p.kind === "tool" && p.id === ev.id ? { ...p, done: true, ok: ev.ok, label: ev.label, payload: ev.payload } : p)),
+      }));
+      // A sheet scaled here belongs in Recent sheets, like one from the scaler.
+      if (ev.payload?.kind === "sheet") {
+        const { sheet, covers } = ev.payload;
+        getStore().history.add(sheet.dish, covers, sheet).catch(() => {});
+      }
+    } else if (ev.type === "done") {
+      patch(assistantId, (m) => ({ ...m, meta: { ...m.meta, usage: ev.usage, engine: ev.engine, model: ev.model, knowledge: ev.knowledge, demo: ev.demo, note: ev.note } }));
+    } else if (ev.type === "error") {
+      patch(assistantId, (m) => ({ ...m, meta: { ...m.meta, error: ev.message } }));
+    }
+  }
+
   async function send(text?: string) {
     const content = (text ?? input).trim();
     if (!content || busy) return;
-    const user: Msg = { id: uid(), role: "user", text: content };
+    const user: Msg = { id: uid(), role: "user", text: content, parts: [] };
     const history = [...messages, user];
     const assistantId = uid();
-    setMessages([...history, { id: assistantId, role: "assistant", text: "" }]);
+    setMessages([...history, { id: assistantId, role: "assistant", text: "", parts: [] }]);
     setInput("");
     setBusy(true);
     const ac = new AbortController();
     abortRef.current = ac;
-
-    const handle = (ev: Event) => {
-      if (ev.type === "text") patch(assistantId, (m) => ({ ...m, text: m.text + ev.text }));
-      else if (ev.type === "done")
-        patch(assistantId, (m) => ({ ...m, meta: { ...m.meta, usage: ev.usage, engine: ev.engine, model: ev.model, knowledge: ev.knowledge, demo: ev.demo, note: ev.note } }));
-      else if (ev.type === "error") patch(assistantId, (m) => ({ ...m, meta: { ...m.meta, error: ev.message } }));
-    };
 
     try {
       const res = await fetch("/api/chat", {
@@ -88,7 +114,8 @@ export default function BrainPage() {
         headers: { "Content-Type": "application/json" },
         signal: ac.signal,
         body: JSON.stringify({
-          messages: history.map((m) => ({ role: m.role, content: m.text })),
+          // Only turns with words go to the model; a failed or stopped-empty answer is skipped.
+          messages: history.filter((m) => m.text.trim()).map((m) => ({ role: m.role, content: m.text })),
           kitchenNotes: notes.filter((n) => n.active !== false).map((n) => n.text),
           yields: yields.map(({ product, kind, pct, source, verifiedOn }) => ({ product, kind, pct, source, verifiedOn })),
         }),
@@ -110,7 +137,7 @@ export default function BrainPage() {
       const feed = (line: string) => {
         if (!line.trim()) return;
         try {
-          handle(JSON.parse(line) as Event);
+          handleEvent(assistantId, JSON.parse(line) as ChatEvent);
         } catch {
           // a torn line; ignore it
         }
@@ -143,12 +170,44 @@ export default function BrainPage() {
     if (busy) stop();
     setMessages([]);
     setInput("");
+    setSaveNotes({});
     boxRef.current?.focus();
   }
 
-  function openInScaler(card: RecipeCard) {
-    setHandoff({ ...card, recipeText: plainText(card.recipeText) });
+  function openInScaler(card: RecipeCard, extra?: { covers: number; sheet: ProductionSheet }) {
+    setHandoff({ ...card, recipeText: plainText(card.recipeText), ...(extra ?? {}) });
     router.push("/app");
+  }
+
+  /** The approval gate: the chef saves, the brain never does. Same rules as the scaler's Save. */
+  async function saveCard(card: RecipeCard, key: string) {
+    if (!card.basePortions || !card.portionSize) {
+      setSaveNotes((s) => ({ ...s, [key]: "To save, the card needs base portions and a portion size. Ask Kitchen Brain to add them." }));
+      return;
+    }
+    try {
+      const s = getStore();
+      const text = plainText(card.recipeText);
+      const existing = (await s.recipes.list()).find((r) => r.name.trim().toLowerCase() === card.name.trim().toLowerCase());
+      if (
+        existing &&
+        (existing.recipeText !== text || existing.basePortions !== card.basePortions || existing.portionSize !== card.portionSize) &&
+        !window.confirm(`"${existing.name}" is already in your library. Replace it with this version?\n\nThe saved card is kept as a previous version.`)
+      ) {
+        return;
+      }
+      await s.recipes.save({
+        name: card.name,
+        recipeText: text,
+        basePortions: card.basePortions,
+        portionSize: card.portionSize,
+        equipment: card.equipment,
+        holdingTime: card.holdingTime,
+      });
+      setSaveNotes((n) => ({ ...n, [key]: `Saved "${card.name}" to your library as a Draft.` }));
+    } catch (e) {
+      setSaveNotes((n) => ({ ...n, [key]: e instanceof Error ? e.message : "Couldn't save the card." }));
+    }
   }
 
   const total = messages.reduce((n, m) => n + tokensOf(m.meta?.usage), 0);
@@ -166,7 +225,7 @@ export default function BrainPage() {
           )}
         </div>
         <p className="mt-1 text-sm text-ink-2">
-          Build, repair or question a recipe with the brain that scales it. It asks when a detail matters, proposes a card for you to approve, and hands the card to the scaler.
+          Build, repair or question a recipe with the brain that scales it. It can read your library, run the scaler for a cover count, and propose a card for you to approve.
         </p>
 
         {messages.length === 0 ? (
@@ -214,29 +273,29 @@ export default function BrainPage() {
                   <p className="mt-2 whitespace-pre-wrap text-sm">{m.text}</p>
                 ) : (
                   <div className="mt-2 text-sm">
-                    {splitCards(m.text).map((seg, i) =>
-                      seg.kind === "text" ? (
-                        <p key={i} className="whitespace-pre-wrap">
-                          {plainText(seg.text)}
-                        </p>
+                    {m.parts.map((part, pi) =>
+                      part.kind === "tool" ? (
+                        <ToolLine key={part.id} part={part} onOpen={openInScaler} />
                       ) : (
-                        <div key={i} className="my-3">
-                          <pre className="font-mono-ui whitespace-pre-wrap border-b border-ink bg-card px-3 py-3 text-sm text-ink">{plainText(seg.raw)}</pre>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <button onClick={() => openInScaler(seg.card)} className={`${PRIMARY} px-4 py-2 text-sm`}>
-                              Open in scaler
-                            </button>
-                            <span className="text-xs text-ink-3">
-                              {seg.card.name}
-                              {seg.card.basePortions ? ` · base ${seg.card.basePortions}` : ""}
-                              {seg.card.portionSize ? ` · ${seg.card.portionSize}` : ""}
-                              {" · Draft until you approve it"}
-                            </span>
-                          </div>
-                        </div>
+                        splitCards(part.text).map((seg, si) =>
+                          seg.kind === "text" ? (
+                            <p key={`${pi}-${si}`} className="whitespace-pre-wrap">
+                              {plainText(seg.text)}
+                            </p>
+                          ) : (
+                            <CardBlock
+                              key={`${pi}-${si}`}
+                              raw={seg.raw}
+                              card={seg.card}
+                              note={saveNotes[`${m.id}-${pi}-${si}`]}
+                              onOpen={() => openInScaler(seg.card)}
+                              onSave={() => saveCard(seg.card, `${m.id}-${pi}-${si}`)}
+                            />
+                          )
+                        )
                       )
                     )}
-                    {busy && !m.text && !m.meta?.error && messages[messages.length - 1]?.id === m.id && (
+                    {busy && !m.text && !m.parts.length && !m.meta?.error && messages[messages.length - 1]?.id === m.id && (
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-3">Kitchen Brain is writing</p>
                     )}
                     {m.meta?.stopped && <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3">Stopped</p>}
@@ -261,7 +320,7 @@ export default function BrainPage() {
           <textarea
             ref={boxRef}
             className={`${FIELD} mt-2 h-28 text-sm`}
-            placeholder="Describe the dish, paste a card, or ask a kitchen question."
+            placeholder="Describe the dish, paste a card, name a library recipe, or ask a kitchen question."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -284,10 +343,106 @@ export default function BrainPage() {
             <span className="text-xs text-ink-3">Enter sends; Shift+Enter starts a new line.</span>
           </div>
           <p className="mt-3 text-xs text-ink-3">
-            Conversations are kept on this screen only. Hand a card to the scaler and save it to keep it. A card from Kitchen Brain is a Draft until you test it.
+            Conversations are kept on this screen only. A card is a Draft until you test it; Save to library keeps it, Open in scaler prints it. A sheet scaled here also appears under Recent sheets in the scaler.
           </p>
         </section>
       </main>
+    </div>
+  );
+}
+
+function CardBlock({ raw, card, note, onOpen, onSave }: { raw: string; card: RecipeCard; note?: string; onOpen: () => void; onSave: () => void }) {
+  return (
+    <div className="my-3">
+      <pre className="font-mono-ui whitespace-pre-wrap border-b border-ink bg-card px-3 py-3 text-sm text-ink">{plainText(raw)}</pre>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button onClick={onOpen} className={`${PRIMARY} px-4 py-2 text-sm`}>
+          Open in scaler
+        </button>
+        <button onClick={onSave} className={CHIP}>
+          Save to library
+        </button>
+        <span className="text-xs text-ink-3">
+          {card.name}
+          {card.basePortions ? ` · base ${card.basePortions}` : ""}
+          {card.portionSize ? ` · ${card.portionSize}` : ""}
+          {" · Draft until you approve it"}
+        </span>
+      </div>
+      {note && <p className="mt-2 text-xs font-semibold text-ink-2">{note}</p>}
+    </div>
+  );
+}
+
+type OpenSheet = (card: RecipeCard, extra: { covers: number; sheet: ProductionSheet }) => void;
+
+function ToolLine({ part, onOpen }: { part: Extract<Part, { kind: "tool" }>; onOpen: OpenSheet }) {
+  const payload = part.payload;
+  return (
+    <div className="my-3">
+      <p className={`text-[11px] font-bold uppercase tracking-wider ${part.done && part.ok === false ? "text-danger" : "text-ink-3"}`}>
+        {part.label}
+        {!part.done ? " (working)" : ""}
+      </p>
+      {part.done && payload?.kind === "sheet" && <SheetBlock payload={payload} onOpen={onOpen} />}
+    </div>
+  );
+}
+
+function SheetBlock({ payload, onOpen }: { payload: Extract<ToolPayload, { kind: "sheet" }>; onOpen: OpenSheet }) {
+  const { sheet, covers, demo, note } = payload;
+  const checks = validateSheet(sheet);
+  const head = checksHeadline(checks);
+  const warned = checks.filter((c) => c.status === "warn");
+  return (
+    <div className="mt-2 border-t border-ink pt-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <span className="font-semibold">
+          {sheet.dish} · {covers} covers
+          <span className="ml-2 rounded-md border border-ink px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{sheet.status || "Draft"}</span>
+        </span>
+        <span className={`text-xs font-bold ${head.status === "warn" ? "text-warn" : "text-ink"}`}>{head.status === "warn" ? `${head.warned} to review` : "All checks passed"}</span>
+      </div>
+      <p className="mt-1 text-xs text-ink-2">
+        {sheet.baseYield.portions} portions to {covers} covers at {sheet.targetYield.portionSize}; finished yield {sheet.targetYield.finishedYield}.
+      </p>
+      {warned.map((c) => (
+        <p key={c.label} className="mt-1 text-xs text-warn">
+          {c.label}: {c.detail}
+        </p>
+      ))}
+      {demo && <p className={`${NOTE_WARN} mt-2 text-xs`}>{note || "Built-in estimate: the chef-logic engine was unavailable."}</p>}
+      <table className="mt-2 w-full text-sm">
+        <tbody>
+          {sheet.ingredients.map((i, n) => (
+            <tr key={n}>
+              <td className={`${TD} font-semibold`}>{i.item}</td>
+              <td className={`${TD} whitespace-nowrap pr-0 text-right`}>{i.scaledQty}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {sheet.pullList.length > 0 && (
+        <>
+          <h4 className={`${H2} mt-3`}>Pull list</h4>
+          <table className="mt-1 w-full text-sm">
+            <tbody>
+              {sheet.pullList.map((p, n) => (
+                <tr key={n}>
+                  <td className={`${TD} font-semibold`}>{p.item}</td>
+                  <td className={`${TD} whitespace-nowrap pr-0 text-right`}>{p.apQty}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button onClick={() => onOpen(payload.card, { covers, sheet })} className={`${PRIMARY} px-4 py-2 text-sm`}>
+          Open the full sheet in the scaler
+        </button>
+        <span className="text-xs text-ink-3">batching, holding, checks, HACCP, prep list, print</span>
+      </div>
     </div>
   );
 }

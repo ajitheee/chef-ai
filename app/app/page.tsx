@@ -204,18 +204,32 @@ export default function Home() {
   }
 
   function loadHandoff(h: Handoff) {
-    setRecipeStatus("Draft");
     setRecipeName(h.name);
     setRecipeText(h.recipeText);
     setBasePortions(h.basePortions ? String(h.basePortions) : "");
-    setTargetCovers("");
+    setTargetCovers(h.covers ? String(h.covers) : "");
     setPortionSize(h.portionSize ?? "");
     setEquipment(h.equipment ?? "");
     setHoldingTime(h.holdingTime ?? "");
     clearImage();
-    setSheet(null);
     setError("");
-    setDataNote("Card from Kitchen Brain loaded. Check it, set today's covers, then Scale.");
+    setEngineMs(null);
+    setEngineLabel(null);
+    setKnowledgeUsed([]);
+    setYieldsUsed([]);
+    if (h.sheet) {
+      // Kitchen Brain already scaled it: show that sheet as it is. Any edit to the card means scaling again.
+      const s = plainSheet(h.sheet);
+      setSheet(s);
+      setDemo(s.source === "estimate");
+      setEngineNote("");
+      setRecipeStatus(s.status && s.status !== "Draft" ? s.status : "Draft");
+      setDataNote(`Sheet from Kitchen Brain loaded: ${s.dish}, ${s.targetYield.covers} covers. Print it, or edit the card and scale again.`);
+    } else {
+      setSheet(null);
+      setRecipeStatus("Draft");
+      setDataNote("Card from Kitchen Brain loaded. Check it, set today's covers, then Scale.");
+    }
   }
 
   function loadSample() {
