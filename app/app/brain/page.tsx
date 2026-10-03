@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
-import { H1, H2, FIELD, CHIP, PRIMARY, TD, NOTE_WARN, NOTE_DANGER } from "@/components/paper";
+import { H1, H2, FIELD, CHIP, CHIP_ON, PRIMARY, TD, NOTE_WARN, NOTE_DANGER } from "@/components/paper";
 import { getStore, type KitchenNote, type VerifiedYieldItem } from "@/lib/store";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { plainText } from "@/lib/engine/plain";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
-import { splitCards, type RecipeCard } from "@/lib/recipe-card";
+import { splitBlocks, hidePartialChoices, type RecipeCard, type Choices } from "@/lib/recipe-card";
 import { setHandoff } from "@/lib/handoff";
 import type { ChatEvent, ChatPart, ToolPayload, StoredChatMessage, ConversationSummary } from "@/lib/chat-events";
 import type { EngineUsage } from "@/lib/engine/claude";
@@ -26,7 +26,7 @@ type UsageInfo = {
 };
 
 const EXAMPLES = [
-  "Build a card for chicken tinga: 50 portions, 4 oz cooked, tilt skillet and hotel pans.",
+  "Build a card for chicken tinga: 50 portions, 4 oz cooked, tilt skillet and hotel pans. I need 120 covers.",
   "What is in my library with chicken? Then scale the Chicken Piccata for 200 covers.",
   "My Mexican rice came out gummy at 800 covers. What went wrong, and what do I change on the card?",
 ];
@@ -151,7 +151,7 @@ export default function BrainPage() {
     const assistantId = uid();
     let draft: Msg = { id: assistantId, role: "assistant", text: "", parts: [], createdAt: now };
     setMessages([...history, draft]);
-    setInput("");
+    if (text === undefined) setInput(""); // a pressed button leaves a typed draft alone
     setBusy(true);
 
     // The conversation exists from the first message on.
@@ -393,7 +393,7 @@ export default function BrainPage() {
             </section>
           ) : (
             <ol className="mt-6 space-y-6">
-              {messages.map((m) => (
+              {messages.map((m, mi) => (
                 <li key={m.id} className="border-t border-ink pt-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                     <span className={H2}>{m.role === "user" ? "You" : "Kitchen Brain"}</span>
@@ -421,12 +421,13 @@ export default function BrainPage() {
                         part.kind === "tool" ? (
                           <ToolLine key={part.id} part={part} onOpen={openInScaler} />
                         ) : (
-                          splitCards(part.text).map((seg, si) =>
+                          // While the latest answer streams, a half-written CHOICES block is held back until it is complete.
+                          splitBlocks(busy && mi === messages.length - 1 ? hidePartialChoices(part.text) : part.text).map((seg, si) =>
                             seg.kind === "text" ? (
                               <p key={`${pi}-${si}`} className="whitespace-pre-wrap">
                                 {plainText(seg.text)}
                               </p>
-                            ) : (
+                            ) : seg.kind === "card" ? (
                               <CardBlock
                                 key={`${pi}-${si}`}
                                 raw={seg.raw}
@@ -434,6 +435,14 @@ export default function BrainPage() {
                                 note={saveNotes[`${m.id}-${pi}-${si}`]}
                                 onOpen={() => openInScaler(seg.card)}
                                 onSave={() => saveCard(seg.card, `${m.id}-${pi}-${si}`)}
+                              />
+                            ) : (
+                              <ChoicesBlock
+                                key={`${pi}-${si}`}
+                                choices={seg.choices}
+                                live={!busy && mi === messages.length - 1}
+                                chosen={messages[mi + 1]?.role === "user" ? messages[mi + 1].text : undefined}
+                                onPick={send}
                               />
                             )
                           )
@@ -487,7 +496,7 @@ export default function BrainPage() {
               <span className="text-xs text-ink-3">Enter sends; Shift+Enter starts a new line.</span>
             </div>
             <p className="mt-3 text-xs text-ink-3">
-              Conversations are saved as you go. A card is a Draft until you test it; Save to library keeps it, Open in scaler prints it. A sheet scaled here also appears under Recent sheets in the scaler.
+              Conversations are saved as you go. When Kitchen Brain asks you something, the answers are buttons; you can always type instead. A card is a Draft until you test it; Save to library keeps it, Open in scaler prints it. A sheet scaled here also appears under Recent sheets in the scaler.
             </p>
           </section>
         </section>
@@ -515,6 +524,38 @@ function CardBlock({ raw, card, note, onOpen, onSave }: { raw: string; card: Rec
         </span>
       </div>
       {note && <p className="mt-2 text-xs font-semibold text-ink-2">{note}</p>}
+    </div>
+  );
+}
+
+/** A spent button: the chef has already replied. The one they pressed stays filled. */
+const SPENT = "rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-3";
+
+/**
+ * A question or an approval gate from the brain, as buttons. Live on the latest
+ * answer, where pressing one sends it as the reply; spent once the chef has
+ * replied, with the pressed one filled.
+ */
+function ChoicesBlock({ choices, live, chosen, onPick }: { choices: Choices; live: boolean; chosen?: string; onPick: (option: string) => void }) {
+  const options = choices.options.map((o) => plainText(o));
+  const picked = chosen ? options.find((o) => o.trim().toLowerCase() === chosen.trim().toLowerCase()) : undefined;
+  return (
+    <div className="my-3">
+      {choices.question && <p className="font-semibold">{plainText(choices.question)}</p>}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {options.map((o) =>
+          live ? (
+            <button key={o} onClick={() => onPick(o)} className={CHIP}>
+              {o}
+            </button>
+          ) : (
+            <span key={o} className={o === picked ? CHIP_ON : SPENT}>
+              {o}
+            </span>
+          )
+        )}
+        {live && <span className="text-xs text-ink-3">or type your answer below</span>}
+      </div>
     </div>
   );
 }

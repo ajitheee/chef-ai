@@ -63,8 +63,20 @@ export function chatSystemBlocks(input: ChatInput): { blocks: Anthropic.TextBloc
   return { blocks, knowledge: [...CORE, ...extra].map((s) => s.title) };
 }
 
-/** What Kitchen Brain says when no AI key is configured: honest, and it carries a card so the handoff can be tried. */
-export function demoReplyText(): string {
+/**
+ * What Kitchen Brain says when no AI key is configured: honest, and it carries
+ * a card and a gate so the handoff and the buttons can be tried. Pressing the
+ * gate gets the follow-up, so the demo conversation hangs together.
+ */
+export function demoReplyText(lastUserText = ""): string {
+  const pressed = lastUserText.match(/scale it for (\d+) covers/i);
+  if (pressed) {
+    return [
+      `Demo reply. With the AI key set, Kitchen Brain would now run the scaler for ${pressed[1]} covers and show the checked sheet here, with Open the full sheet in the scaler under it.`,
+      "",
+      "Until then, tap Open in scaler under the card above, set the covers, and scale it there.",
+    ].join("\n");
+  }
   const [name, ...rest] = SAMPLE.recipeText.trim().split("\n");
   return [
     "Demo reply. The AI key is not set on this server, so Kitchen Brain cannot think yet. Once it is, it answers under the Master Prompt v3.0 and the Knowledge Pack: it asks when a detail changes yield or safety, proposes a recipe card for you to approve, and hands the card to the scaler.",
@@ -80,7 +92,12 @@ export function demoReplyText(): string {
     ...rest,
     "END CARD",
     "",
-    "Tap Open in scaler under the card, set today's covers, and scale it.",
+    "Tap Open in scaler under the card, set today's covers, and scale it. Or press the button: that is how a gate works once the brain is live.",
+    "",
+    "CHOICES",
+    "Question: Scale this card as it is?",
+    `- Scale it for ${SAMPLE.targetCovers} covers`,
+    "END CHOICES",
   ].join("\n");
 }
 

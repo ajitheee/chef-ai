@@ -35,7 +35,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: "scale_recipe",
     description:
-      "Run the production scaler on a recipe card for a cover count. It returns the checked production sheet: scaled quantities with multipliers, batching, holding, pull list and the accuracy checks. Use it only when the chef asks for quantities at a cover count and the card is complete. Give libraryName to scale a library recipe unchanged, or give the card fields. It takes 30 to 60 seconds; never call it twice for the same card and count.",
+      "Run the production scaler on a recipe card for a cover count. It returns the checked production sheet: scaled quantities with multipliers, batching, holding, pull list and the accuracy checks. Use it only when the chef asks for quantities at a cover count and the card is complete; for a card built or changed in this conversation, only after the chef has approved it (pressed Scale it for N covers, or said so). Give libraryName to scale a library recipe unchanged, or give the card fields. It takes 30 to 60 seconds; never call it twice for the same card and count.",
     input_schema: {
       type: "object",
       properties: {

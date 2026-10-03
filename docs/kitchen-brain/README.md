@@ -4,7 +4,7 @@ The engine's brain is two documents owned by the chef, stored here **verbatim** 
 
 | Document | Role in the app | Current |
 |---|---|---|
-| Universal Kitchen Brain **Master Prompt** | The system instructions: how the engine reasons, scales, validates and writes. Sent verbatim on every call, followed by the app's *application contract* (`lib/engine/brain/contract.ts`), which maps the prompt's recipe contract onto the structured production sheet and states the organization overlay (US dining hall, US customary units). | v3.0 |
+| Universal Kitchen Brain **Master Prompt** | The system instructions: how the engine reasons, scales, validates and writes. Sent verbatim on every call, followed by the app's *application contract* (`lib/engine/brain/contract.ts`), which maps the prompt's recipe contract onto the structured production sheet and states the organization overlay (US dining hall, US customary units). In conversation (the Kitchen Brain tab) it is followed instead by the *conversation contract* (`lib/engine/brain/chat-contract.ts`): it may ask, it proposes recipe cards, its questions and approval gates arrive as buttons, and scaling goes through the scaler. | v3.0 |
 | Universal Culinary Production **Knowledge Pack** | The searchable knowledge source. Split into one entry per section; each scale request retrieves only the sections that match the recipe (`lib/engine/brain/retrieve.ts`) plus a small always-on core (yield equations, AP/EP, units, rounding, validation). The sheet records which sections were applied. | v3.0 |
 
 `current.json` names the active version of each. Older versions stay in this folder for history.

@@ -1,7 +1,9 @@
 /**
- * Recipe cards inside a Kitchen Brain answer. The conversation contract makes
- * the model write a card between "RECIPE CARD" and "END CARD" with a fixed
- * header; this reads it back so the page can offer "Open in scaler".
+ * The blocks Kitchen Brain writes inside an answer, read back by the page.
+ * The conversation contract fixes two exact formats: a RECIPE CARD between
+ * "RECIPE CARD" and "END CARD" (so the page can offer Open in scaler and Save
+ * to library), and a CHOICES block between "CHOICES" and "END CHOICES" (a
+ * question or an approval gate, shown as buttons that send the reply).
  */
 
 export type RecipeCard = {
@@ -14,10 +16,22 @@ export type RecipeCard = {
   recipeText: string;
 };
 
-export type Segment = { kind: "text"; text: string } | { kind: "card"; card: RecipeCard; raw: string };
+/** A question or a gate the brain is waiting on, with the replies the chef can press. */
+export type Choices = { question: string; options: string[] };
+
+export type Segment =
+  | { kind: "text"; text: string }
+  | { kind: "card"; card: RecipeCard; raw: string }
+  | { kind: "choices"; choices: Choices; raw: string };
+
+/** Buttons past this are not a focused question; the rest of the list is dropped. */
+export const MAX_CHOICES = 4;
 
 const CARD = /RECIPE CARD[ \t]*\n([\s\S]*?)\nEND CARD/g;
+// Anchored to a line start so the word inside "END CHOICES" can never open a block.
+const CHOICES = /^CHOICES[ \t]*\n([\s\S]*?)\nEND CHOICES[ \t]*$/gm;
 const META = /^(Name|Base portions|Portion size|Equipment|Hold time)\s*:\s*(.*)$/i;
+const OPTION = /^(?:[-*•]|\d+[.)])\s+(.*)$/;
 
 /** Read one card body (the lines between the markers). Null when there is no name. */
 export function parseCard(body: string): RecipeCard | null {
@@ -45,18 +59,68 @@ export function parseCard(body: string): RecipeCard | null {
   };
 }
 
-/** Split an answer into plain text and complete cards, in order. An unfinished card (still streaming) stays text. */
-export function splitCards(text: string): Segment[] {
-  const out: Segment[] = [];
-  let last = 0;
-  for (const m of text.matchAll(CARD)) {
-    const start = m.index ?? 0;
-    const card = parseCard(m[1]);
-    if (!card) continue;
-    if (start > last) out.push({ kind: "text", text: text.slice(last, start) });
-    out.push({ kind: "card", card, raw: m[0] });
-    last = start + m[0].length;
+/**
+ * Read one choices body: a question line (with or without "Question:"), then
+ * one option per line, listed with a hyphen or a number. Null without an option.
+ */
+export function parseChoices(body: string): Choices | null {
+  const question: string[] = [];
+  const options: string[] = [];
+  for (const raw of body.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = line.match(OPTION);
+    if (m) {
+      const option = m[1].trim();
+      if (option && !options.some((o) => o.toLowerCase() === option.toLowerCase())) options.push(option);
+    } else if (options.length === 0) {
+      question.push(line.replace(/^question\s*:\s*/i, ""));
+    }
   }
-  if (last < text.length) out.push({ kind: "text", text: text.slice(last) });
+  if (options.length === 0) return null;
+  return { question: question.join(" ").trim(), options: options.slice(0, MAX_CHOICES) };
+}
+
+/**
+ * Split an answer into text, complete cards and complete choices, in order.
+ * An unfinished block (still streaming) stays text. Text segments lose the
+ * blank lines that separate them from a block; a segment that was only blank
+ * lines is dropped.
+ */
+export function splitBlocks(text: string): Segment[] {
+  const found: { start: number; end: number; seg: Segment }[] = [];
+  for (const m of text.matchAll(CARD)) {
+    const card = parseCard(m[1]);
+    const start = m.index ?? 0;
+    if (card) found.push({ start, end: start + m[0].length, seg: { kind: "card", card, raw: m[0] } });
+  }
+  for (const m of text.matchAll(CHOICES)) {
+    const choices = parseChoices(m[1]);
+    const start = m.index ?? 0;
+    if (choices) found.push({ start, end: start + m[0].length, seg: { kind: "choices", choices, raw: m[0] } });
+  }
+  found.sort((a, b) => a.start - b.start);
+
+  const out: Segment[] = [];
+  const pushText = (s: string) => {
+    const t = s.replace(/^\n+|\n+$/g, "");
+    if (t.trim()) out.push({ kind: "text", text: t });
+  };
+  let last = 0;
+  for (const f of found) {
+    if (f.start < last) continue; // a block inside a block: the outer one was already taken
+    if (f.start > last) pushText(text.slice(last, f.start));
+    out.push(f.seg);
+    last = f.end;
+  }
+  if (last < text.length) pushText(text.slice(last));
   return out;
+}
+
+/** While an answer streams, a CHOICES block that has begun but not ended is held back: it is buttons, not prose. */
+export function hidePartialChoices(text: string): string {
+  let cut = -1;
+  for (const m of text.matchAll(/^CHOICES[ \t]*(?:\n|$)/gm)) cut = m.index ?? -1;
+  if (cut < 0 || /^END CHOICES/m.test(text.slice(cut))) return text;
+  return text.slice(0, cut).replace(/\s+$/, "");
 }

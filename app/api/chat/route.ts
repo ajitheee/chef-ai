@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   if (isDemoMode()) {
     return ndjson(async (emit) => {
-      for (const piece of chunk(demoReplyText())) {
+      for (const piece of chunk(demoReplyText(turns[turns.length - 1]?.content ?? ""))) {
         emit({ type: "text", text: piece });
         await sleep(8);
       }

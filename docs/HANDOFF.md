@@ -23,6 +23,10 @@
 - **Yields:** enter a measured number, for example pork shoulder, cook, 62. Your numbers outrank the book from then on, and the sheet says "verified".
 - When a card cooks out right, open it in Library and mark it **Tested**. Sheets scaled from a Tested card carry that tag instead of Draft. Any edit to the card puts it back to Draft, and the previous version is kept.
 
+## Kitchen Brain
+
+The **Kitchen Brain** tab is the same brain in conversation. Describe a dish and it writes a recipe card; name a library recipe and it reads yours instead of guessing; ask a kitchen question and it answers under the same rules as the sheets. Every card it writes is a Draft until you act on it: **Save to library** keeps it, **Open in scaler** takes it to the scaler. When it asks you something, or is ready to scale a card, the answers are buttons: tap one, or type your own. A sheet scaled in the conversation is the real scaler's sheet, with the same checks, and opens in the scaler without scaling again.
+
 ## What I need back after the first service
 
 The printed sheet with your pen marks, or a photo of it. Every number you would change is the most useful thing you can give me.
