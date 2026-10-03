@@ -16,7 +16,7 @@ const DEMO_ING = [
 function fmt(v: number, unit: string): string {
   const r = (n: number) => (Number.isInteger(n) ? String(n) : String(Math.round(n * 10) / 10));
   if (unit === "oz" && v >= 16) return `${r(v / 16)} lb`;
-  if (unit === "Tbsp" && v >= 16) return `${r(v / 16)} cups`;
+  if (unit === "Tbsp" && v >= 16) return `${r(v / 16)} ${v / 16 === 1 ? "cup" : "cups"}`;
   return `${r(v)} ${unit}`;
 }
 
