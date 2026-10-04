@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SAMPLE, PRESETS, type Preset } from "@/lib/engine/sample";
 import type { ProductionSheet, Variation } from "@/lib/engine/schema";
 import { pullListCsv, sheetText, downloadText, safeFileName } from "@/lib/export";
@@ -15,7 +16,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { TopBar } from "@/components/TopBar";
 import { downscaleImage } from "@/lib/image";
 import { plainSheet } from "@/lib/engine/plain";
-import { takeHandoff, type Handoff } from "@/lib/handoff";
+import { takeHandoff, setBrainPrompt, type Handoff } from "@/lib/handoff";
+import { routeAsk, type Ask } from "@/lib/ask";
 import { LABEL, LABEL_INLINE, FIELD, fieldCls, CHIP, chip, PRIMARY, H2, NOTE_WARN, Section, Dot } from "@/components/paper";
 
 type ApiReply = {
@@ -104,6 +106,14 @@ export default function Home() {
 
   const [dataNote, setDataNote] = useState("");
 
+  // The front door: one line, "Mexican rice for 800". The form under it is the details.
+  const router = useRouter();
+  const [ask, setAsk] = useState("");
+  const [askChoices, setAskChoices] = useState<Extract<Ask<SavedRecipe | Preset>, { kind: "choose" }> | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [pendingScale, setPendingScale] = useState(false);
+  const askRef = useRef<HTMLInputElement | null>(null);
+
   // The working-data store (browser storage, or the chef's Supabase rows).
   // Created lazily on the client — never during server prerender.
   const storeRef = useRef<KitchenStore | null>(null);
@@ -133,12 +143,32 @@ export default function Home() {
           if (d.ok) {
             loadPreset(d.recipe as Preset);
             setRecipeStatus(typeof d.recipe.status === "string" ? d.recipe.status : "Draft");
+            setShowDetails(true);
           }
         })
         .catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A line in the box that names a library recipe and a count: the card is loaded, then scaled on the next render.
+  useEffect(() => {
+    if (!pendingScale) return;
+    setPendingScale(false);
+    onScale();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingScale]);
+
+  // A field that needs filling is focused once the details are open (opening them is what shows it).
+  useEffect(() => {
+    if (!showDetails) return;
+    const first = (Object.keys(fieldErrors) as Field[]).find((f) => fieldErrors[f]);
+    const el = first ? fieldRefs.current[first] : null;
+    if (!el) return;
+    el.focus();
+    el.select(); // a wrong value is replaced by whatever they type next
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [fieldErrors, showDetails]);
 
   async function onAddNote() {
     if (!newNote.trim()) return;
@@ -228,6 +258,7 @@ export default function Home() {
     } else {
       setSheet(null);
       setRecipeStatus("Draft");
+      setShowDetails(true);
       setDataNote("Card from Kitchen Brain loaded. Check it, set today's covers, then Scale.");
     }
   }
@@ -294,10 +325,7 @@ export default function Home() {
     setFieldErrors(Object.fromEntries(missing.map((f) => [f, FIELD_HELP[f]])));
     if (missing.length === 0) return true;
     setError(`Fill in the highlighted field${missing.length > 1 ? "s" : ""}: ${missing.map((f) => FIELD_LABEL[f]).join(", ")}.`);
-    const first = fieldRefs.current[missing[0]];
-    first?.focus();
-    first?.select(); // a wrong value is replaced by whatever they type next
-    first?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setShowDetails(true); // the field is in the details; opening them focuses it
     return false;
   }
 
@@ -306,7 +334,7 @@ export default function Home() {
     const known = (fields || []).filter((f): f is Field => f in FIELD_HELP);
     if (known.length === 0) return;
     setFieldErrors(Object.fromEntries(known.map((f) => [f, FIELD_HELP[f]])));
-    fieldRefs.current[known[0]]?.focus();
+    setShowDetails(true);
   }
 
   async function onSave() {
@@ -362,6 +390,53 @@ export default function Home() {
       .recipes.remove(id)
       .then(setSaved)
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't delete the recipe."));
+  }
+
+  /** The box: a library recipe and a count scale now; anything else goes to Kitchen Brain. */
+  function onAsk() {
+    const text = ask.trim();
+    if (!text || loading) return;
+    const route = routeAsk<SavedRecipe | Preset>(text, [...saved, ...(storeKind !== "supabase" ? PRESETS : [])]);
+    setAskChoices(null);
+    if (route.kind === "brain") {
+      setBrainPrompt(text);
+      router.push("/app/brain");
+      return;
+    }
+    if (route.kind === "covers") {
+      setTargetCovers(String(route.covers));
+      clearFieldError("targetCovers");
+      setShowDetails(true);
+      setDataNote("Which recipe? Tap one above, or type its name with the count.");
+      return;
+    }
+    if (route.kind === "choose") {
+      setAskChoices(route);
+      return;
+    }
+    scaleNow(route.recipe, route.covers);
+  }
+
+  function scaleNow(r: SavedRecipe | Preset, covers: number) {
+    if ("id" in r) loadSaved(r);
+    else loadPreset(r);
+    setTargetCovers(String(covers));
+    clearFieldError("targetCovers");
+    setAskChoices(null);
+    setPendingScale(true);
+  }
+
+  /** A recipe chip puts the name in the box; the chef adds the count and presses Go. */
+  function askFor(name: string, covers?: number) {
+    const line = `${name} for ${covers ? covers : ""}`;
+    setAsk(line);
+    setAskChoices(null);
+    window.setTimeout(() => {
+      const el = askRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(line.length, line.length);
+    }, 0);
   }
 
   async function onScale() {
@@ -492,23 +567,47 @@ export default function Home() {
       <main className="mx-auto max-w-[100rem] px-4 py-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-10 lg:px-8 print:block">
         {/* Left pane — the recipe. Stays put while the sheet on the right scrolls. */}
         <aside className="no-print lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:self-start lg:overflow-y-auto lg:pb-6 lg:pr-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-            <h1 className="text-xl font-semibold tracking-tight">Production scaler</h1>
-            <div className="flex flex-wrap gap-1.5">
-              <button onClick={loadSample} className={CHIP}>Load sample</button>
-              <button onClick={onSave} className={CHIP}>{storeKind === "supabase" ? "Save to library" : "Save recipe"}</button>
-              <button onClick={onVariations} disabled={varLoading} className={`${CHIP} disabled:opacity-50`}>
-                {varLoading ? "Thinking…" : "Variations"}
-              </button>
+          <h1 className="text-2xl font-semibold tracking-tight">What are you cooking, and for how many?</h1>
+          <form
+            className="mt-3 flex items-stretch gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onAsk();
+            }}
+          >
+            <input
+              ref={askRef}
+              className={`${FIELD} text-lg`}
+              placeholder="Mexican rice for 800"
+              value={ask}
+              onChange={(e) => {
+                setAsk(e.target.value);
+                setAskChoices(null);
+              }}
+              autoFocus
+            />
+            <button type="submit" disabled={loading || !ask.trim()} className={`${PRIMARY} px-5 text-base`}>
+              {loading ? "Scaling…" : "Go"}
+            </button>
+          </form>
+          <p className="mt-2 text-xs text-ink-3">Name a recipe and a count, or ask anything.</p>
+          {askChoices && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className={LABEL_INLINE}>Which one?</span>
+              {askChoices.matches.map((r) => (
+                <button key={r.name} onClick={() => scaleNow(r, askChoices.covers)} className={CHIP}>
+                  {r.name} for {askChoices.covers}
+                </button>
+              ))}
             </div>
-          </div>
+          )}
           {dataNote && <p className="mt-2 text-xs font-semibold text-ink-2">{dataNote}</p>}
 
           {storeKind !== "supabase" && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <span className={LABEL_INLINE}>His recipes</span>
               {PRESETS.map((p) => (
-                <button key={p.name} onClick={() => loadPreset(p)} className={CHIP}>
+                <button key={p.name} onClick={() => askFor(p.name)} className={CHIP}>
                   {p.name}
                 </button>
               ))}
@@ -520,7 +619,7 @@ export default function Home() {
               <span className={LABEL_INLINE}>{storeKind === "supabase" ? "Your library" : "Saved"}</span>
               {saved.slice(0, 8).map((r) => (
                 <span key={r.id} className="inline-flex items-center rounded-md border border-line-2 text-xs">
-                  <button onClick={() => loadSaved(r)} className="py-1 pl-2.5 pr-1.5 font-semibold hover:bg-accent-soft">{r.name}</button>
+                  <button onClick={() => askFor(r.name, r.lastCovers)} className="py-1 pl-2.5 pr-1.5 font-semibold hover:bg-accent-soft">{r.name}</button>
                   <button onClick={() => onDelete(r.id)} className="px-1.5 py-1 text-ink-3 hover:text-danger" aria-label={`Delete ${r.name}`}>×</button>
                 </span>
               ))}
@@ -532,6 +631,18 @@ export default function Home() {
             </div>
           )}
 
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-line-2 pt-3">
+            <button onClick={() => setShowDetails((s) => !s)} className={`text-xs font-semibold ${toolCls(showDetails)}`}>
+              {showDetails ? "Hide details" : "Details"}
+            </button>
+            <span className="min-w-0 truncate text-xs text-ink-2">
+              {recipeName
+                ? `${recipeName}${basePortions ? ` · base ${basePortions}` : ""}${portionSize ? ` · ${portionSize}` : ""}${targetCovers ? ` · ${targetCovers} covers` : ""}`
+                : "the card, a photo, the fields"}
+            </span>
+          </div>
+          {showDetails && (
+            <>
           <div className="mt-4">
             <label className={LABEL}>Recipe name</label>
             <input ref={(el) => { fieldRefs.current.recipeName = el; }} className={`${fieldCls(!!fieldErrors.recipeName)} font-semibold`} placeholder={fieldErrors.recipeName || "Chicken Jambalaya"} value={recipeName} onChange={(e) => { setRecipeName(e.target.value); clearFieldError("recipeName"); }} />
@@ -588,6 +699,15 @@ export default function Home() {
           <button onClick={onScale} disabled={loading} className={`${PRIMARY} mt-4 w-full py-3.5 text-base`}>
             {loading ? "Scaling…" : "Scale recipe →"}
           </button>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <button onClick={loadSample} className={CHIP}>Load sample</button>
+            <button onClick={onSave} className={CHIP}>{storeKind === "supabase" ? "Save to library" : "Save recipe"}</button>
+            <button onClick={onVariations} disabled={varLoading} className={`${CHIP} disabled:opacity-50`}>
+              {varLoading ? "Thinking…" : "Variations"}
+            </button>
+          </div>
+            </>
+          )}
           {error && <p className="mt-3 border-l-4 border-danger bg-danger-soft px-3 py-2 text-sm font-semibold text-danger">{error}</p>}
 
           {/* The small tools, under a rule: kitchen memory, prices, backup */}
@@ -832,11 +952,11 @@ function EmptyState({
       <p className="mt-2 border-t border-ink pt-3 text-sm text-ink-2">
         {hasRecipe ? (
           <>
-            Set today&apos;s covers and tap <span className="font-bold text-ink">Scale recipe</span>. The sheet appears here: scaled amounts, batching, holding, pull list and accuracy checks.
+            Add the count in the box and press <span className="font-bold text-ink">Go</span>. The sheet appears here.
           </>
         ) : (
           <>
-            New here? Tap <span className="font-bold text-ink">Load sample</span>, then <span className="font-bold text-ink">Scale recipe</span> to see a full production sheet: scaled amounts, batching, hot-line holding, and a pull list.
+            Type a recipe and a count, like <span className="font-bold text-ink">Mexican rice for 800</span>, and press Go. The sheet appears here.
           </>
         )}
       </p>

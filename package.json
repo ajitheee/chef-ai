@@ -12,6 +12,7 @@
     "brain": "tsx scripts/build-brain.ts",
     "brain:check": "tsx scripts/brain-check.ts",
     "chat:check": "tsx scripts/chat-check.ts",
+    "ask:check": "tsx scripts/ask-check.ts",
     "portion:check": "tsx scripts/portion-check.ts"
   },
   "dependencies": {

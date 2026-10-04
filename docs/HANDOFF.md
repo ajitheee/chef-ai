@@ -5,8 +5,8 @@
 
 ## Five minutes to your first sheet
 
-1. Sign in and open **Library**. Your four Centerpointe recipes are there, plus a test library you can ignore.
-2. Open a recipe and tap **Scale this recipe**. Enter today's covers and tap **Scale recipe**. A sheet takes about 40 seconds.
+1. Sign in. The first screen asks one thing: **What are you cooking, and for how many?**
+2. Type it the way you would say it, for example **Mexican rice for 800**, and press **Go**. A recipe from your library scales straight away; a sheet takes about 40 seconds. Anything else you type, a question or a dish that is not in the library yet, goes to Kitchen Brain, which answers and can build the card. The full form (paste a card, add a photo, set the fields by hand) is under **Details**.
 3. Read the sheet: scaled quantities with the reason wherever they are not linear, batching, holding, the pull list in ordering units, and the accuracy checks at the top. **Print** it, or download the pull list as **CSV**. One tap each for the HACCP summary, prep list and SOP.
 4. Under a sheet, **Refine this sheet** takes a plain instruction, for example "drop to 400 covers" or "make it vegetarian".
 

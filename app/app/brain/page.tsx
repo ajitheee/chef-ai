@@ -9,7 +9,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { plainText } from "@/lib/engine/plain";
 import { validateSheet, checksHeadline } from "@/lib/engine/validate";
 import { splitBlocks, hidePartialChoices, type RecipeCard, type Choices } from "@/lib/recipe-card";
-import { setHandoff } from "@/lib/handoff";
+import { setHandoff, takeBrainPrompt } from "@/lib/handoff";
 import type { ChatEvent, ChatPart, ToolPayload, StoredChatMessage, ConversationSummary } from "@/lib/chat-events";
 import type { EngineUsage } from "@/lib/engine/claude";
 import type { ProductionSheet } from "@/lib/engine/schema";
@@ -85,6 +85,9 @@ export default function BrainPage() {
   const [notes, setNotes] = useState<KitchenNote[]>([]);
   const [yields, setYields] = useState<VerifiedYieldItem[]>([]);
   const [saveNotes, setSaveNotes] = useState<Record<string, string>>({});
+  // A line handed over by the scaler's box, sent as the first message once the kitchen facts are loaded.
+  const [firstPrompt, setFirstPrompt] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
@@ -114,8 +117,9 @@ export default function BrainPage() {
 
   useEffect(() => {
     const s = getStore();
-    s.notes.list().then(setNotes).catch(() => {});
-    s.yields.list().then(setYields).catch(() => {});
+    Promise.allSettled([s.notes.list().then(setNotes), s.yields.list().then(setYields)]).then(() => setReady(true));
+    const q = takeBrainPrompt();
+    if (q) setFirstPrompt(q);
     s.conversations
       .list()
       .then((list) => {
@@ -132,6 +136,14 @@ export default function BrainPage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!ready || !firstPrompt || busy) return;
+    const q = firstPrompt;
+    setFirstPrompt(null);
+    send(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, firstPrompt]);
 
   const patch = (id: string, fn: (m: Msg) => Msg) => setMessages((ms) => ms.map((m) => (m.id === id ? fn(m) : m)));
 

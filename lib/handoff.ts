@@ -23,6 +23,28 @@ export function setHandoff(h: Handoff): void {
   }
 }
 
+const PROMPT_KEY = "chefai.brain-prompt.v1";
+
+/** A line typed in the scaler's box that is for Kitchen Brain: put down here, sent as the first message there. */
+export function setBrainPrompt(text: string): void {
+  try {
+    window.sessionStorage.setItem(PROMPT_KEY, text);
+  } catch {
+    // Storage blocked: Kitchen Brain opens empty and the chef types it again.
+  }
+}
+
+export function takeBrainPrompt(): string | null {
+  try {
+    const t = window.sessionStorage.getItem(PROMPT_KEY);
+    if (t === null) return null;
+    window.sessionStorage.removeItem(PROMPT_KEY);
+    return t.trim() ? t : null;
+  } catch {
+    return null;
+  }
+}
+
 export function takeHandoff(): Handoff | null {
   try {
     const raw = window.sessionStorage.getItem(KEY);
